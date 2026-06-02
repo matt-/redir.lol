@@ -19,7 +19,7 @@ function showTab(name, btn) {
   if (name === 'rebind') loadRebind();
   if (name === 'hits') loadHits();
   if (name === 'config') loadConfig();
-  if (name === 'admin') { adminPage = 1; adminRbPage = 1; loadAdminRules(); loadAdminRebind(); loadAdminUsers(); }
+  if (name === 'admin') { showAdminPane('redirects', document.querySelector('.subnav button')); }
 }
 
 // --- Auth ---
@@ -377,6 +377,18 @@ function copyText(btn, text) {
   });
 }
 
+// --- Admin sub-navigation ---
+
+function showAdminPane(name, btn) {
+  document.querySelectorAll('.admin-pane').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.subnav button').forEach(el => el.classList.remove('active'));
+  document.getElementById('admin-pane-' + name).style.display = '';
+  if (btn) btn.classList.add('active');
+  if (name === 'redirects') { adminPage = 1; adminRbPage = 1; loadAdminRules(); loadAdminRebind(); }
+  if (name === 'users')     loadAdminUsers();
+  if (name === 'logs')      loadAdminHits();
+}
+
 // --- Admin ---
 
 async function loadAdminRules() {
@@ -560,6 +572,36 @@ async function adminRbDeleteSelected() {
     await Promise.all(ids.map(id => api('/api/admin/rebind/' + id, 'DELETE')));
     loadAdminRebind();
   } catch(e) { showAlert('admin-alert', e.message, 'error'); }
+}
+
+// --- Admin: hit log ---
+
+async function loadAdminHits() {
+  try {
+    const hits = await api('/api/admin/hits');
+    renderAdminHits(hits);
+  } catch(e) { showAlert('admin-alert', e.message, 'error'); }
+}
+
+function renderAdminHits(hits) {
+  const cont = document.getElementById('admin-hits-container');
+  if (!hits || hits.length === 0) {
+    cont.innerHTML = '<div class="empty-state"><p>No hits recorded yet.</p></div>';
+    return;
+  }
+  let html = `<table class="hits-table">
+    <thead><tr><th>Time</th><th>Rule</th><th>Remote IP</th><th>User-Agent</th></tr></thead><tbody>`;
+  hits.forEach(h => {
+    const ts = new Date(h.timestamp).toLocaleString();
+    html += `<tr>
+      <td class="timestamp">${escHtml(ts)}</td>
+      <td class="mono">${escHtml(h.rule_label || h.rule_id)}</td>
+      <td class="mono">${escHtml(h.remote_ip || '')}</td>
+      <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(h.user_agent || '')}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  cont.innerHTML = html;
 }
 
 // --- Admin: users ---

@@ -103,6 +103,18 @@ func (h *Handler) adminListRebind(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handler) adminListHits(w http.ResponseWriter, r *http.Request) {
+	hits, err := h.store.ListAllHits(200)
+	if err != nil {
+		jsonError(w, err.Error(), 500)
+		return
+	}
+	if hits == nil {
+		hits = []*store.Hit{}
+	}
+	jsonOK(w, hits)
+}
+
 func (h *Handler) adminListUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := h.store.ListUsers()
 	if err != nil {

@@ -248,6 +248,31 @@ func (s *Store) ListHits(limit int, userID string) ([]*Hit, error) {
 	return hits, rows.Err()
 }
 
+func (s *Store) ListAllHits(limit int) ([]*Hit, error) {
+	if limit <= 0 {
+		limit = 200
+	}
+	rows, err := s.db.Query(
+		`SELECT h.id, h.rule_id, COALESCE(r.label, h.rule_id), h.remote_ip, h.user_agent, h.timestamp
+		 FROM hits h LEFT JOIN rules r ON h.rule_id = r.id
+		 ORDER BY h.id DESC LIMIT ?`,
+		limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var hits []*Hit
+	for rows.Next() {
+		h := &Hit{}
+		if err := rows.Scan(&h.ID, &h.RuleID, &h.RuleLabel, &h.RemoteIP, &h.UserAgent, &h.Timestamp); err != nil {
+			return nil, err
+		}
+		hits = append(hits, h)
+	}
+	return hits, rows.Err()
+}
+
 // --- Rebind Rules ---
 
 func (s *Store) CreateRebindRule(r *RebindRule) error {

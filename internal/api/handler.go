@@ -65,6 +65,7 @@ func (h *Handler) Register(mux *http.ServeMux, protect func(http.Handler) http.H
 	mux.Handle("/api/admin/rebind/", protect(admin(http.HandlerFunc(h.adminDeleteRebind))))
 	mux.Handle("/api/admin/users", protect(admin(http.HandlerFunc(h.adminListUsers))))
 	mux.Handle("/api/admin/users/", protect(admin(http.HandlerFunc(h.adminUserByID))))
+	mux.Handle("/api/admin/hits", protect(admin(http.HandlerFunc(h.adminListHits))))
 }
 
 // --- Rules ---

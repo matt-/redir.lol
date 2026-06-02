@@ -182,40 +182,64 @@
     <div id="tab-admin" class="tab-pane">
       <div id="admin-alert"></div>
 
-      <div class="section-header">
-        <h2>All Redirect Rules</h2>
-        <div style="display:flex;align-items:center;gap:12px">
-          <span id="admin-page-info" style="font-size:12px;color:#64748b"></span>
-          <button class="btn danger small" id="admin-delete-selected-btn" style="display:none" onclick="adminDeleteSelected()">Delete Selected</button>
-          <button class="btn secondary small" id="admin-prev-btn" onclick="adminPrevPage()">Prev</button>
-          <button class="btn secondary small" id="admin-next-btn" onclick="adminNextPage()">Next</button>
+      <!-- Admin sub-navigation -->
+      <nav class="subnav">
+        <button class="active" onclick="showAdminPane('redirects', this)">Redirects</button>
+        <button onclick="showAdminPane('users', this)">Users</button>
+        <button onclick="showAdminPane('logs', this)">Logs</button>
+      </nav>
+
+      <!-- Sub-pane: Redirects -->
+      <div id="admin-pane-redirects" class="admin-pane">
+        <div class="section-header">
+          <h2>All Redirect Rules</h2>
+          <div style="display:flex;align-items:center;gap:12px">
+            <span id="admin-page-info" style="font-size:12px;color:#64748b"></span>
+            <button class="btn danger small" id="admin-delete-selected-btn" style="display:none" onclick="adminDeleteSelected()">Delete Selected</button>
+            <button class="btn secondary small" id="admin-prev-btn" onclick="adminPrevPage()">Prev</button>
+            <button class="btn secondary small" id="admin-next-btn" onclick="adminNextPage()">Next</button>
+          </div>
         </div>
-      </div>
-      <div id="admin-container" style="margin-bottom:32px">
-        <div class="empty-state"><p>Loading…</p></div>
+        <div id="admin-container" style="margin-bottom:32px">
+          <div class="empty-state"><p>Loading…</p></div>
+        </div>
+
+        <div class="section-header">
+          <h2>All DNS Rebind Rules</h2>
+          <div style="display:flex;align-items:center;gap:12px">
+            <span id="admin-rb-page-info" style="font-size:12px;color:#64748b"></span>
+            <button class="btn danger small" id="admin-rb-delete-selected-btn" style="display:none" onclick="adminRbDeleteSelected()">Delete Selected</button>
+            <button class="btn secondary small" id="admin-rb-prev-btn" onclick="adminRbPrevPage()">Prev</button>
+            <button class="btn secondary small" id="admin-rb-next-btn" onclick="adminRbNextPage()">Next</button>
+          </div>
+        </div>
+        <div id="admin-rebind-container">
+          <div class="empty-state"><p>Loading…</p></div>
+        </div>
       </div>
 
-      <div class="section-header">
-        <h2>All DNS Rebind Rules</h2>
-        <div style="display:flex;align-items:center;gap:12px">
-          <span id="admin-rb-page-info" style="font-size:12px;color:#64748b"></span>
-          <button class="btn danger small" id="admin-rb-delete-selected-btn" style="display:none" onclick="adminRbDeleteSelected()">Delete Selected</button>
-          <button class="btn secondary small" id="admin-rb-prev-btn" onclick="adminRbPrevPage()">Prev</button>
-          <button class="btn secondary small" id="admin-rb-next-btn" onclick="adminRbNextPage()">Next</button>
+      <!-- Sub-pane: Users -->
+      <div id="admin-pane-users" class="admin-pane" style="display:none">
+        <div class="section-header">
+          <h2>Users</h2>
+          <div style="display:flex;align-items:center;gap:12px">
+            <button class="btn danger small" id="admin-usr-delete-selected-btn" style="display:none" onclick="adminUsrDeleteSelected()">Delete Selected</button>
+          </div>
         </div>
-      </div>
-      <div id="admin-rebind-container">
-        <div class="empty-state"><p>Loading…</p></div>
+        <div id="admin-users-container">
+          <div class="empty-state"><p>Loading…</p></div>
+        </div>
       </div>
 
-      <div class="section-header" style="margin-top:32px">
-        <h2>Users</h2>
-        <div style="display:flex;align-items:center;gap:12px">
-          <button class="btn danger small" id="admin-usr-delete-selected-btn" style="display:none" onclick="adminUsrDeleteSelected()">Delete Selected</button>
+      <!-- Sub-pane: Logs -->
+      <div id="admin-pane-logs" class="admin-pane" style="display:none">
+        <div class="section-header">
+          <h2>All Hits</h2>
+          <button class="btn secondary small" onclick="loadAdminHits()">Refresh</button>
         </div>
-      </div>
-      <div id="admin-users-container">
-        <div class="empty-state"><p>Loading…</p></div>
+        <div id="admin-hits-container">
+          <div class="empty-state"><p>Loading…</p></div>
+        </div>
       </div>
 
       <!-- inline edit modal -->
