@@ -19,7 +19,7 @@ function showTab(name, btn) {
   if (name === 'rebind') loadRebind();
   if (name === 'hits') loadHits();
   if (name === 'config') loadConfig();
-  if (name === 'admin') { showAdminPane('redirects', document.querySelector('.subnav button')); }
+  if (name === 'admin') { showAdminPane('redirects', document.querySelector('.admin-sidebar-item')); }
 }
 
 // --- Auth ---
@@ -381,7 +381,7 @@ function copyText(btn, text) {
 
 function showAdminPane(name, btn) {
   document.querySelectorAll('.admin-pane').forEach(el => el.style.display = 'none');
-  document.querySelectorAll('.subnav button').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.admin-sidebar-item').forEach(el => el.classList.remove('active'));
   document.getElementById('admin-pane-' + name).style.display = '';
   if (btn) btn.classList.add('active');
   if (name === 'redirects') { adminPage = 1; adminRbPage = 1; loadAdminRules(); loadAdminRebind(); }

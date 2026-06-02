@@ -182,12 +182,16 @@
     <div id="tab-admin" class="tab-pane">
       <div id="admin-alert"></div>
 
-      <!-- Admin sub-navigation -->
-      <nav class="subnav">
-        <button class="active" onclick="showAdminPane('redirects', this)">Redirects</button>
-        <button onclick="showAdminPane('users', this)">Users</button>
-        <button onclick="showAdminPane('logs', this)">Logs</button>
-      </nav>
+      <div class="admin-layout">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+          <button class="admin-sidebar-item active" onclick="showAdminPane('redirects', this)">Redirects</button>
+          <button class="admin-sidebar-item" onclick="showAdminPane('users', this)">Users</button>
+          <button class="admin-sidebar-item" onclick="showAdminPane('logs', this)">Logs</button>
+        </aside>
+
+        <!-- Content area -->
+        <div class="admin-content">
 
       <!-- Sub-pane: Redirects -->
       <div id="admin-pane-redirects" class="admin-pane">
@@ -241,6 +245,9 @@
           <div class="empty-state"><p>Loading…</p></div>
         </div>
       </div>
+
+        </div><!-- /.admin-content -->
+      </div><!-- /.admin-layout -->
 
       <!-- inline edit modal -->
       <div id="user-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:none;align-items:center;justify-content:center">
