@@ -20,6 +20,7 @@ type Rule struct {
 	Type       RedirectType `json:"type"`
 	StatusCode int          `json:"status_code"`
 	HitCount   int64        `json:"hit_count"`
+	UserID     string       `json:"user_id"`
 	CreatedAt  time.Time    `json:"created_at"`
 }
 
@@ -30,6 +31,7 @@ type RebindRule struct {
 	FirstIP   string `json:"first_ip"`
 	SecondIP  string `json:"second_ip"`
 	Threshold int    `json:"threshold"`
+	UserID    string `json:"user_id"`
 }
 
 type Hit struct {
@@ -39,4 +41,19 @@ type Hit struct {
 	RemoteIP  string    `json:"remote_ip"`
 	UserAgent string    `json:"user_agent"`
 	Timestamp time.Time `json:"timestamp"`
+}
+
+type User struct {
+	ID           string    `json:"id"`
+	Email        string    `json:"email"`
+	Username     string    `json:"username"`
+	PasswordHash string    `json:"-"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+type Session struct {
+	Token     string    `json:"-"`
+	UserID    string    `json:"user_id"`
+	CreatedAt time.Time `json:"created_at"`
+	ExpiresAt time.Time `json:"expires_at"`
 }

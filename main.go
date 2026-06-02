@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/mattaustin/redir/internal/api"
+	"github.com/mattaustin/redir/internal/auth"
 	dnsserver "github.com/mattaustin/redir/internal/dns"
 	"github.com/mattaustin/redir/internal/proxy"
 	"github.com/mattaustin/redir/internal/redirect"
@@ -80,16 +81,23 @@ func main() {
 		http.Redirect(w, r, "/ui/index.html", http.StatusFound)
 	})
 
-	// redirect engine
+	// redirect engine — public, no auth
 	rh := redirect.New(s)
 	mux.Handle("/r/", rh)
 
-	// proxy
+	// proxy — public
 	mux.HandleFunc("/proxy", proxy.Handler)
 
-	// api
+	// auth routes — public
+	protect := auth.Middleware(s)
+	mux.HandleFunc("/api/auth/register", auth.RegisterHandler(s))
+	mux.HandleFunc("/api/auth/login", auth.LoginHandler(s))
+	mux.HandleFunc("/api/auth/logout", auth.LogoutHandler(s))
+	mux.Handle("/api/auth/me", protect(auth.MeHandler(s)))
+
+	// protected api routes
 	apiHandler := api.New(s, cfg)
-	apiHandler.Register(mux)
+	apiHandler.Register(mux, protect)
 
 	httpSrv := &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", *bindAddr, *port),

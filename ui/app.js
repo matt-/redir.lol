@@ -16,25 +16,101 @@ function showTab(name, btn) {
   if (name === 'config') loadConfig();
 }
 
+// --- Auth ---
+
+function showAuthPane() {
+  document.getElementById('auth-pane').style.display = '';
+  document.getElementById('app-header').style.display = 'none';
+  document.getElementById('main-nav').style.display = 'none';
+  document.getElementById('main-content').style.display = 'none';
+}
+
+function showApp(me) {
+  document.getElementById('auth-pane').style.display = 'none';
+  document.getElementById('app-header').style.display = '';
+  document.getElementById('main-nav').style.display = '';
+  document.getElementById('main-content').style.display = '';
+
+  const ui = document.getElementById('user-info');
+  ui.innerHTML = `<span>${escHtml(me.username)}</span>
+    <button class="btn secondary small" onclick="logout()">Logout</button>`;
+}
+
+function showLogin() {
+  document.getElementById('login-card').style.display = '';
+  document.getElementById('register-card').style.display = 'none';
+  document.getElementById('auth-alert').innerHTML = '';
+}
+
+function showRegister() {
+  document.getElementById('login-card').style.display = 'none';
+  document.getElementById('register-card').style.display = '';
+  document.getElementById('auth-alert').innerHTML = '';
+}
+
+async function login() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  if (!email || !password) { showAuthAlert('Email and password are required'); return; }
+  try {
+    const me = await api('/api/auth/login', 'POST', { email, password });
+    showApp(me);
+    initApp();
+  } catch(e) { showAuthAlert(e.message); }
+}
+
+async function register() {
+  const email    = document.getElementById('reg-email').value.trim();
+  const username = document.getElementById('reg-username').value.trim();
+  const password = document.getElementById('reg-password').value;
+  if (!email || !username || !password) { showAuthAlert('All fields are required'); return; }
+  try {
+    const me = await api('/api/auth/register', 'POST', { email, username, password });
+    showApp(me);
+    initApp();
+  } catch(e) { showAuthAlert(e.message); }
+}
+
+async function logout() {
+  await api('/api/auth/logout', 'POST').catch(() => {});
+  showAuthPane();
+  showLogin();
+}
+
+function showAuthAlert(msg) {
+  document.getElementById('auth-alert').innerHTML =
+    `<div class="alert error">${escHtml(msg)}</div>`;
+}
+
 // --- Init ---
 
 async function init() {
+  try {
+    const me = await api('/api/auth/me');
+    showApp(me);
+    initApp();
+  } catch(e) {
+    showAuthPane();
+  }
+}
+
+async function initApp() {
   try {
     const [p, c] = await Promise.all([api('/api/presets'), api('/api/config')]);
     presets = p;
     cfg = c;
     const dl = document.getElementById('presets-list');
+    dl.innerHTML = '';
     presets.forEach(ps => {
       const opt = document.createElement('option');
       opt.value = ps.url;
       opt.label = ps.name;
       dl.appendChild(opt);
     });
-    // pre-fill public IP in rebind form
     if (cfg.public_ip) {
       document.getElementById('rb-first-ip').value = cfg.public_ip;
     }
-  } catch(e) { console.error('init', e); }
+  } catch(e) { console.error('initApp', e); }
   loadRules();
 }
 

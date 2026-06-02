@@ -13,6 +13,21 @@ import (
 )
 
 const schema = `
+CREATE TABLE IF NOT EXISTS users (
+	id            TEXT PRIMARY KEY,
+	email         TEXT UNIQUE NOT NULL,
+	username      TEXT UNIQUE NOT NULL,
+	password_hash TEXT NOT NULL,
+	created_at    DATETIME NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+	token      TEXT PRIMARY KEY,
+	user_id    TEXT NOT NULL REFERENCES users(id),
+	created_at DATETIME NOT NULL,
+	expires_at DATETIME NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS rules (
 	id          TEXT PRIMARY KEY,
 	label       TEXT UNIQUE,
@@ -20,6 +35,7 @@ CREATE TABLE IF NOT EXISTS rules (
 	type        TEXT NOT NULL,
 	status_code INTEGER NOT NULL DEFAULT 302,
 	hit_count   INTEGER NOT NULL DEFAULT 0,
+	user_id     TEXT NOT NULL DEFAULT '',
 	created_at  DATETIME NOT NULL
 );
 
@@ -29,7 +45,8 @@ CREATE TABLE IF NOT EXISTS rebind_rules (
 	hostname    TEXT NOT NULL,
 	first_ip    TEXT NOT NULL,
 	second_ip   TEXT NOT NULL,
-	threshold   INTEGER NOT NULL DEFAULT 1
+	threshold   INTEGER NOT NULL DEFAULT 1,
+	user_id     TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS hits (
@@ -40,6 +57,13 @@ CREATE TABLE IF NOT EXISTS hits (
 	timestamp  DATETIME NOT NULL
 );
 `
+
+// migrations adds columns to pre-existing databases; errors are intentionally
+// ignored because "duplicate column name" is the expected error on re-run.
+var migrations = []string{
+	`ALTER TABLE rules ADD COLUMN user_id TEXT NOT NULL DEFAULT ''`,
+	`ALTER TABLE rebind_rules ADD COLUMN user_id TEXT NOT NULL DEFAULT ''`,
+}
 
 type Store struct {
 	db          *sql.DB
@@ -54,6 +78,9 @@ func Open(path string) (*Store, error) {
 	db.SetMaxOpenConns(1) // SQLite is single-writer
 	if _, err := db.Exec(schema); err != nil {
 		return nil, fmt.Errorf("apply schema: %w", err)
+	}
+	for _, m := range migrations {
+		db.Exec(m) // ignore "duplicate column" errors on existing DBs
 	}
 	return &Store{db: db}, nil
 }
@@ -81,16 +108,18 @@ func (s *Store) CreateRule(r *Rule) error {
 		r.StatusCode = 302
 	}
 	_, err := s.db.Exec(
-		`INSERT INTO rules (id, label, target_url, type, status_code, hit_count, created_at)
-		 VALUES (?, ?, ?, ?, ?, 0, ?)`,
-		r.ID, nullableString(r.Label), r.TargetURL, r.Type, r.StatusCode, r.CreatedAt,
+		`INSERT INTO rules (id, label, target_url, type, status_code, hit_count, user_id, created_at)
+		 VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
+		r.ID, nullableString(r.Label), r.TargetURL, r.Type, r.StatusCode, r.UserID, r.CreatedAt,
 	)
 	return err
 }
 
-func (s *Store) ListRules() ([]*Rule, error) {
+func (s *Store) ListRules(userID string) ([]*Rule, error) {
 	rows, err := s.db.Query(
-		`SELECT id, COALESCE(label,''), target_url, type, status_code, hit_count, created_at FROM rules ORDER BY created_at DESC`,
+		`SELECT id, COALESCE(label,''), target_url, type, status_code, hit_count, user_id, created_at
+		 FROM rules WHERE user_id=? ORDER BY created_at DESC`,
+		userID,
 	)
 	if err != nil {
 		return nil, err
@@ -99,7 +128,7 @@ func (s *Store) ListRules() ([]*Rule, error) {
 	var rules []*Rule
 	for rows.Next() {
 		r := &Rule{}
-		if err := rows.Scan(&r.ID, &r.Label, &r.TargetURL, &r.Type, &r.StatusCode, &r.HitCount, &r.CreatedAt); err != nil {
+		if err := rows.Scan(&r.ID, &r.Label, &r.TargetURL, &r.Type, &r.StatusCode, &r.HitCount, &r.UserID, &r.CreatedAt); err != nil {
 			return nil, err
 		}
 		rules = append(rules, r)
@@ -110,10 +139,10 @@ func (s *Store) ListRules() ([]*Rule, error) {
 func (s *Store) GetRule(idOrLabel string) (*Rule, error) {
 	r := &Rule{}
 	err := s.db.QueryRow(
-		`SELECT id, COALESCE(label,''), target_url, type, status_code, hit_count, created_at
+		`SELECT id, COALESCE(label,''), target_url, type, status_code, hit_count, user_id, created_at
 		 FROM rules WHERE id = ? OR label = ? LIMIT 1`,
 		idOrLabel, idOrLabel,
-	).Scan(&r.ID, &r.Label, &r.TargetURL, &r.Type, &r.StatusCode, &r.HitCount, &r.CreatedAt)
+	).Scan(&r.ID, &r.Label, &r.TargetURL, &r.Type, &r.StatusCode, &r.HitCount, &r.UserID, &r.CreatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -122,14 +151,14 @@ func (s *Store) GetRule(idOrLabel string) (*Rule, error) {
 
 func (s *Store) UpdateRule(r *Rule) error {
 	_, err := s.db.Exec(
-		`UPDATE rules SET label=?, target_url=?, type=?, status_code=? WHERE id=?`,
-		nullableString(r.Label), r.TargetURL, r.Type, r.StatusCode, r.ID,
+		`UPDATE rules SET label=?, target_url=?, type=?, status_code=? WHERE id=? AND user_id=?`,
+		nullableString(r.Label), r.TargetURL, r.Type, r.StatusCode, r.ID, r.UserID,
 	)
 	return err
 }
 
-func (s *Store) DeleteRule(id string) error {
-	_, err := s.db.Exec(`DELETE FROM rules WHERE id=?`, id)
+func (s *Store) DeleteRule(id, userID string) error {
+	_, err := s.db.Exec(`DELETE FROM rules WHERE id=? AND user_id=?`, id, userID)
 	return err
 }
 
@@ -150,19 +179,20 @@ func (s *Store) RecordHit(h *Hit) error {
 	if err != nil {
 		return err
 	}
-	// Cap hits table at 1000 rows
 	s.db.Exec(`DELETE FROM hits WHERE id NOT IN (SELECT id FROM hits ORDER BY id DESC LIMIT 1000)`)
 	return nil
 }
 
-func (s *Store) ListHits(limit int) ([]*Hit, error) {
+func (s *Store) ListHits(limit int, userID string) ([]*Hit, error) {
 	if limit <= 0 {
 		limit = 100
 	}
 	rows, err := s.db.Query(
 		`SELECT h.id, h.rule_id, COALESCE(r.label, h.rule_id), h.remote_ip, h.user_agent, h.timestamp
 		 FROM hits h LEFT JOIN rules r ON h.rule_id = r.id
-		 ORDER BY h.id DESC LIMIT ?`, limit,
+		 WHERE r.user_id=?
+		 ORDER BY h.id DESC LIMIT ?`,
+		userID, limit,
 	)
 	if err != nil {
 		return nil, err
@@ -189,16 +219,18 @@ func (s *Store) CreateRebindRule(r *RebindRule) error {
 		r.Threshold = 1
 	}
 	_, err := s.db.Exec(
-		`INSERT INTO rebind_rules (id, label, hostname, first_ip, second_ip, threshold)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
-		r.ID, nullableString(r.Label), r.Hostname, r.FirstIP, r.SecondIP, r.Threshold,
+		`INSERT INTO rebind_rules (id, label, hostname, first_ip, second_ip, threshold, user_id)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		r.ID, nullableString(r.Label), r.Hostname, r.FirstIP, r.SecondIP, r.Threshold, r.UserID,
 	)
 	return err
 }
 
-func (s *Store) ListRebindRules() ([]*RebindRule, error) {
+func (s *Store) ListRebindRules(userID string) ([]*RebindRule, error) {
 	rows, err := s.db.Query(
-		`SELECT id, COALESCE(label,''), hostname, first_ip, second_ip, threshold FROM rebind_rules`,
+		`SELECT id, COALESCE(label,''), hostname, first_ip, second_ip, threshold, user_id
+		 FROM rebind_rules WHERE user_id=?`,
+		userID,
 	)
 	if err != nil {
 		return nil, err
@@ -207,7 +239,7 @@ func (s *Store) ListRebindRules() ([]*RebindRule, error) {
 	var rules []*RebindRule
 	for rows.Next() {
 		r := &RebindRule{}
-		if err := rows.Scan(&r.ID, &r.Label, &r.Hostname, &r.FirstIP, &r.SecondIP, &r.Threshold); err != nil {
+		if err := rows.Scan(&r.ID, &r.Label, &r.Hostname, &r.FirstIP, &r.SecondIP, &r.Threshold, &r.UserID); err != nil {
 			return nil, err
 		}
 		rules = append(rules, r)
@@ -218,8 +250,9 @@ func (s *Store) ListRebindRules() ([]*RebindRule, error) {
 func (s *Store) GetRebindRule(id string) (*RebindRule, error) {
 	r := &RebindRule{}
 	err := s.db.QueryRow(
-		`SELECT id, COALESCE(label,''), hostname, first_ip, second_ip, threshold FROM rebind_rules WHERE id=?`, id,
-	).Scan(&r.ID, &r.Label, &r.Hostname, &r.FirstIP, &r.SecondIP, &r.Threshold)
+		`SELECT id, COALESCE(label,''), hostname, first_ip, second_ip, threshold, user_id
+		 FROM rebind_rules WHERE id=?`, id,
+	).Scan(&r.ID, &r.Label, &r.Hostname, &r.FirstIP, &r.SecondIP, &r.Threshold, &r.UserID)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -231,9 +264,9 @@ func (s *Store) UpdateRebindHostname(id, hostname string) error {
 	return err
 }
 
-func (s *Store) DeleteRebindRule(id string) error {
+func (s *Store) DeleteRebindRule(id, userID string) error {
 	s.queryCounts.Delete(id)
-	_, err := s.db.Exec(`DELETE FROM rebind_rules WHERE id=?`, id)
+	_, err := s.db.Exec(`DELETE FROM rebind_rules WHERE id=? AND user_id=?`, id, userID)
 	return err
 }
 

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/mattaustin/redir/internal/auth"
 	"github.com/mattaustin/redir/internal/store"
 )
 
@@ -45,22 +46,25 @@ func New(s *store.Store, cfg Config) *Handler {
 	return &Handler{store: s, config: cfg}
 }
 
-func (h *Handler) Register(mux *http.ServeMux) {
-	mux.HandleFunc("/api/rules", h.rules)
-	mux.HandleFunc("/api/rules/", h.ruleByID)
-	mux.HandleFunc("/api/rebind", h.rebind)
-	mux.HandleFunc("/api/rebind/", h.rebindByID)
-	mux.HandleFunc("/api/presets", h.getPresets)
-	mux.HandleFunc("/api/config", h.getConfig)
-	mux.HandleFunc("/api/hits", h.getHits)
+// Register wires all API routes onto mux. Protected routes are wrapped with
+// the provided middleware function.
+func (h *Handler) Register(mux *http.ServeMux, protect func(http.Handler) http.Handler) {
+	mux.Handle("/api/rules", protect(http.HandlerFunc(h.rules)))
+	mux.Handle("/api/rules/", protect(http.HandlerFunc(h.ruleByID)))
+	mux.Handle("/api/rebind", protect(http.HandlerFunc(h.rebind)))
+	mux.Handle("/api/rebind/", protect(http.HandlerFunc(h.rebindByID)))
+	mux.Handle("/api/hits", protect(http.HandlerFunc(h.getHits)))
+	mux.Handle("/api/presets", protect(http.HandlerFunc(h.getPresets)))
+	mux.Handle("/api/config", protect(http.HandlerFunc(h.getConfig)))
 }
 
 // --- Rules ---
 
 func (h *Handler) rules(w http.ResponseWriter, r *http.Request) {
+	userID := auth.UserIDFromCtx(r)
 	switch r.Method {
 	case http.MethodGet:
-		rules, err := h.store.ListRules()
+		rules, err := h.store.ListRules(userID)
 		if err != nil {
 			jsonError(w, err.Error(), 500)
 			return
@@ -82,6 +86,7 @@ func (h *Handler) rules(w http.ResponseWriter, r *http.Request) {
 		if rule.Type == "" {
 			rule.Type = store.RedirectHTTP
 		}
+		rule.UserID = userID
 		if err := h.store.CreateRule(&rule); err != nil {
 			jsonError(w, err.Error(), 500)
 			return
@@ -100,17 +105,19 @@ func (h *Handler) ruleByID(w http.ResponseWriter, r *http.Request) {
 		h.rules(w, r)
 		return
 	}
+	userID := auth.UserIDFromCtx(r)
+
 	switch r.Method {
 	case http.MethodGet:
 		rule, err := h.store.GetRule(id)
-		if err != nil || rule == nil {
+		if err != nil || rule == nil || rule.UserID != userID {
 			jsonError(w, "not found", 404)
 			return
 		}
 		jsonOK(w, rule)
 	case http.MethodPut:
 		rule, err := h.store.GetRule(id)
-		if err != nil || rule == nil {
+		if err != nil || rule == nil || rule.UserID != userID {
 			jsonError(w, "not found", 404)
 			return
 		}
@@ -118,14 +125,15 @@ func (h *Handler) ruleByID(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, "invalid JSON", 400)
 			return
 		}
-		rule.ID = id // prevent ID change
+		rule.ID = id
+		rule.UserID = userID // prevent ownership change
 		if err := h.store.UpdateRule(rule); err != nil {
 			jsonError(w, err.Error(), 500)
 			return
 		}
 		jsonOK(w, rule)
 	case http.MethodDelete:
-		if err := h.store.DeleteRule(id); err != nil {
+		if err := h.store.DeleteRule(id, userID); err != nil {
 			jsonError(w, err.Error(), 500)
 			return
 		}
@@ -138,9 +146,10 @@ func (h *Handler) ruleByID(w http.ResponseWriter, r *http.Request) {
 // --- Rebind ---
 
 func (h *Handler) rebind(w http.ResponseWriter, r *http.Request) {
+	userID := auth.UserIDFromCtx(r)
 	switch r.Method {
 	case http.MethodGet:
-		rules, err := h.store.ListRebindRules()
+		rules, err := h.store.ListRebindRules(userID)
 		if err != nil {
 			jsonError(w, err.Error(), 500)
 			return
@@ -148,7 +157,6 @@ func (h *Handler) rebind(w http.ResponseWriter, r *http.Request) {
 		if rules == nil {
 			rules = []*store.RebindRule{}
 		}
-		// annotate with live query counts
 		type rebindWithCount struct {
 			*store.RebindRule
 			QueryCount int64 `json:"query_count"`
@@ -174,7 +182,7 @@ func (h *Handler) rebind(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, "first_ip and second_ip required", 400)
 			return
 		}
-		// auto-generate hostname from ID after creation
+		rr.UserID = userID
 		if err := h.store.CreateRebindRule(&rr); err != nil {
 			jsonError(w, err.Error(), 500)
 			return
@@ -204,7 +212,15 @@ func (h *Handler) rebindByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userID := auth.UserIDFromCtx(r)
+
 	if action == "reset" && r.Method == http.MethodPost {
+		// verify ownership before reset
+		rr, err := h.store.GetRebindRule(id)
+		if err != nil || rr == nil || rr.UserID != userID {
+			jsonError(w, "not found", 404)
+			return
+		}
 		h.store.ResetQueryCount(id)
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -212,7 +228,7 @@ func (h *Handler) rebindByID(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodDelete:
-		if err := h.store.DeleteRebindRule(id); err != nil {
+		if err := h.store.DeleteRebindRule(id, userID); err != nil {
 			jsonError(w, err.Error(), 500)
 			return
 		}
@@ -233,7 +249,8 @@ func (h *Handler) getConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getHits(w http.ResponseWriter, r *http.Request) {
-	hits, err := h.store.ListHits(100)
+	userID := auth.UserIDFromCtx(r)
+	hits, err := h.store.ListHits(100, userID)
 	if err != nil {
 		jsonError(w, err.Error(), 500)
 		return
