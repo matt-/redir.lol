@@ -18,7 +18,6 @@ function showTab(name, btn) {
   if (name === 'redirects') loadRules();
   if (name === 'rebind') loadRebind();
   if (name === 'hits') loadHits();
-  if (name === 'config') loadConfig();
   if (name === 'admin') { showAdminPane('redirects', document.querySelector('.admin-sidebar-item')); }
 }
 
@@ -387,6 +386,7 @@ function showAdminPane(name, btn) {
   if (name === 'redirects') { adminPage = 1; adminRbPage = 1; loadAdminRules(); loadAdminRebind(); }
   if (name === 'users')     loadAdminUsers();
   if (name === 'logs')      loadAdminHits();
+  if (name === 'config')    loadConfig();
 }
 
 // --- Admin ---

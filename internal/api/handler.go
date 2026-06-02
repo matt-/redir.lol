@@ -56,9 +56,9 @@ func (h *Handler) Register(mux *http.ServeMux, protect func(http.Handler) http.H
 	mux.Handle("/api/rebind/", protect(http.HandlerFunc(h.rebindByID)))
 	mux.Handle("/api/hits", protect(http.HandlerFunc(h.getHits)))
 	mux.Handle("/api/presets", protect(http.HandlerFunc(h.getPresets)))
-	mux.Handle("/api/config", protect(http.HandlerFunc(h.getConfig)))
 
 	admin := requireAdmin(h.adminEmails, h.store)
+	mux.Handle("/api/config", protect(admin(http.HandlerFunc(h.getConfig))))
 	mux.Handle("/api/admin/rules", protect(admin(http.HandlerFunc(h.adminListRules))))
 	mux.Handle("/api/admin/rules/", protect(admin(http.HandlerFunc(h.adminDeleteRule))))
 	mux.Handle("/api/admin/rebind", protect(admin(http.HandlerFunc(h.adminListRebind))))
