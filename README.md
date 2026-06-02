@@ -28,14 +28,14 @@ The binary has no runtime dependencies — the web UI is embedded and the databa
 
 | Path | Purpose |
 |---|---|
-| `~/.redir/config.json` | Config file — created with defaults on first run |
+| `~/.redir/config.yaml` | Config file — created with defaults on first run |
 | `~/.redir/redir.db` | SQLite database — rules, users, sessions, hit log |
 
 Both paths can be overridden; see **Configuration** below.
 
 ## Configuration
 
-On first run `~/.redir/config.json` is created automatically with defaults. Edit it to set your domain, admin emails, and other options. See `config.example.json` for a template.
+On first run `~/.redir/config.yaml` is created automatically with defaults. Edit it to set your domain, admin emails, and other options. See `config.example.yaml` for a template.
 
 | Field | Default | Description |
 |---|---|---|
@@ -58,7 +58,7 @@ CLI flags take precedence over the config file. The config file is not rewritten
 To point to a different config file:
 
 ```bash
-./redir -config /etc/redir/config.json
+./redir -config /etc/redir/config.yaml
 ```
 
 ## DNS Rebinding

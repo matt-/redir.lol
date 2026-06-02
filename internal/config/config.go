@@ -1,19 +1,20 @@
 package config
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
+
+	"gopkg.in/yaml.v3"
 )
 
 type AppConfig struct {
-	Port        int      `json:"port"`
-	DNSPort     int      `json:"dns_port"`
-	Domain      string   `json:"domain"`
-	DB          string   `json:"db"`
-	PublicIP    string   `json:"public_ip"`
-	Bind        string   `json:"bind"`
-	AdminEmails []string `json:"admin_emails"`
+	Port        int      `yaml:"port"`
+	DNSPort     int      `yaml:"dns_port"`
+	Domain      string   `yaml:"domain"`
+	DB          string   `yaml:"db"`
+	PublicIP    string   `yaml:"public_ip"`
+	Bind        string   `yaml:"bind"`
+	AdminEmails []string `yaml:"admin_emails"`
 }
 
 func Defaults() *AppConfig {
@@ -31,11 +32,11 @@ func Defaults() *AppConfig {
 
 func DefaultPath() string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".redir", "config.json")
+	return filepath.Join(home, ".redir", "config.yaml")
 }
 
 // Load reads the config file at path. If the file does not exist it is created
-// with defaults. Returns the merged config.
+// with defaults on first run.
 func Load(path string) (*AppConfig, error) {
 	cfg := Defaults()
 
@@ -46,7 +47,7 @@ func Load(path string) (*AppConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := json.Unmarshal(data, cfg); err != nil {
+	if err := yaml.Unmarshal(data, cfg); err != nil {
 		return nil, err
 	}
 	return cfg, nil
@@ -56,7 +57,7 @@ func save(path string, cfg *AppConfig) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return err
 	}
-	data, err := json.MarshalIndent(cfg, "", "  ")
+	data, err := yaml.Marshal(cfg)
 	if err != nil {
 		return err
 	}

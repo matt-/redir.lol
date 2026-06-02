@@ -1,0 +1,8 @@
+port: 8080
+dns_port: 5300
+domain: redir.yourdomain.com
+db: ~/.redir/redir.db
+public_ip: 1.2.3.4
+bind: 0.0.0.0
+admin_emails:
+  - you@example.com
