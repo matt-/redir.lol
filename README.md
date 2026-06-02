@@ -39,7 +39,7 @@ On first run `~/.redir/config.yaml` is created automatically with defaults. Edit
 
 | Field | Default | Description |
 |---|---|---|
-| `port` | `8080` | HTTP port for the web UI, API, and redirect engine |
+| `port` | `9999` | HTTP port for the web UI, API, and redirect engine |
 | `dns_port` | `5300` | UDP port for the DNS server |
 | `domain` | `redir.local` | Base domain for DNS rebind hostnames |
 | `db` | `~/.redir/redir.db` | Path to the SQLite database |

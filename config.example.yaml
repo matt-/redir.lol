@@ -1,4 +1,4 @@
-port: 8080
+port: 9999
 dns_port: 5300
 domain: redir.yourdomain.com
 db: ~/.redir/redir.db

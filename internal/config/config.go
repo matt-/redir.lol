@@ -20,7 +20,7 @@ type AppConfig struct {
 func Defaults() *AppConfig {
 	home, _ := os.UserHomeDir()
 	return &AppConfig{
-		Port:        8080,
+		Port:        9999,
 		DNSPort:     5300,
 		Domain:      "redir.local",
 		DB:          filepath.Join(home, ".redir", "redir.db"),
