@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>redir — redirect security tool</title>
+  <link rel="stylesheet" href="/ui/style.css">
+</head>
+<body>
+  <header>
+    <h1>redir</h1>
+    <span class="tagline">redirect &amp; DNS rebind security testing</span>
+  </header>
+
+  <nav>
+    <button class="active" onclick="showTab('redirects', this)">Redirects</button>
+    <button onclick="showTab('rebind', this)">DNS Rebind</button>
+    <button onclick="showTab('hits', this)">Hit Log</button>
+    <button onclick="showTab('config', this)">Config</button>
+  </nav>
+
+  <main>
+    <!-- Redirects Tab -->
+    <div id="tab-redirects" class="tab-pane active">
+      <div id="rule-alert"></div>
+
+      <div class="form-card" id="new-rule-form">
+        <h3>New Redirect Rule</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Label (optional)</label>
+            <input id="rule-label" type="text" placeholder="aws-ssrf" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label>Type</label>
+            <select id="rule-type" onchange="onTypeChange()">
+              <option value="http">HTTP Redirect</option>
+              <option value="meta">Meta Refresh</option>
+              <option value="js">JavaScript</option>
+              <option value="proxy">Proxy (fetch-on-behalf)</option>
+            </select>
+          </div>
+          <div class="form-group" id="status-code-group">
+            <label>Status Code</label>
+            <select id="rule-status-code">
+              <option value="301">301 Moved Permanently</option>
+              <option value="302" selected>302 Found</option>
+              <option value="303">303 See Other</option>
+              <option value="307">307 Temporary Redirect</option>
+              <option value="308">308 Permanent Redirect</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="grid-column: 1/-1">
+            <label>Target URL</label>
+            <input id="rule-target" type="url" placeholder="http://169.254.169.254/latest/meta-data/" list="presets-list" autocomplete="off">
+            <datalist id="presets-list"></datalist>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn" onclick="createRule()">Create Rule</button>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <h2>Rules</h2>
+      </div>
+
+      <div id="rules-container">
+        <div class="empty-state"><p>No rules yet. Create one above.</p></div>
+      </div>
+    </div>
+
+    <!-- DNS Rebind Tab -->
+    <div id="tab-rebind" class="tab-pane">
+      <div id="rebind-alert"></div>
+
+      <div class="form-card">
+        <h3>New DNS Rebind Rule</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Label (optional)</label>
+            <input id="rb-label" type="text" placeholder="aws-rebind" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label>First IP (attacker, serves first)</label>
+            <input id="rb-first-ip" type="text" placeholder="1.2.3.4" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label>Second IP (target, after flip)</label>
+            <input id="rb-second-ip" type="text" placeholder="169.254.169.254" list="rebind-presets-list" autocomplete="off">
+            <datalist id="rebind-presets-list">
+              <option value="169.254.169.254">AWS/Azure metadata</option>
+              <option value="127.0.0.1">localhost</option>
+              <option value="172.17.0.1">Docker bridge</option>
+            </datalist>
+          </div>
+          <div class="form-group">
+            <label>Flip after N queries</label>
+            <input id="rb-threshold" type="number" value="1" min="1">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn" onclick="createRebind()">Create Rebind Rule</button>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <h2>Rebind Rules</h2>
+      </div>
+
+      <div id="rebind-container">
+        <div class="empty-state"><p>No rebind rules yet. Create one above.</p></div>
+      </div>
+    </div>
+
+    <!-- Hit Log Tab -->
+    <div id="tab-hits" class="tab-pane">
+      <div class="section-header">
+        <h2>Recent Hits</h2>
+        <button class="btn secondary" onclick="loadHits()">Refresh</button>
+      </div>
+      <div id="hits-container">
+        <div class="empty-state"><p>No hits recorded yet.</p></div>
+      </div>
+    </div>
+
+    <!-- Config Tab -->
+    <div id="tab-config" class="tab-pane">
+      <div id="config-container"></div>
+    </div>
+  </main>
+
+  <script src="/ui/app.js"></script>
+</body>
+</html>
