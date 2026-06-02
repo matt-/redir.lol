@@ -179,16 +179,29 @@
 
     <!-- Admin Tab -->
     <div id="tab-admin" class="tab-pane">
+      <div id="admin-alert"></div>
+
       <div class="section-header">
-        <h2>All Rules</h2>
+        <h2>All Redirect Rules</h2>
         <div style="display:flex;align-items:center;gap:12px">
           <span id="admin-page-info" style="font-size:12px;color:#64748b"></span>
           <button class="btn secondary small" id="admin-prev-btn" onclick="adminPrevPage()">Prev</button>
           <button class="btn secondary small" id="admin-next-btn" onclick="adminNextPage()">Next</button>
         </div>
       </div>
-      <div id="admin-alert"></div>
-      <div id="admin-container">
+      <div id="admin-container" style="margin-bottom:32px">
+        <div class="empty-state"><p>Loading…</p></div>
+      </div>
+
+      <div class="section-header">
+        <h2>All DNS Rebind Rules</h2>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span id="admin-rb-page-info" style="font-size:12px;color:#64748b"></span>
+          <button class="btn secondary small" id="admin-rb-prev-btn" onclick="adminRbPrevPage()">Prev</button>
+          <button class="btn secondary small" id="admin-rb-next-btn" onclick="adminRbNextPage()">Next</button>
+        </div>
+      </div>
+      <div id="admin-rebind-container">
         <div class="empty-state"><p>Loading…</p></div>
       </div>
     </div>

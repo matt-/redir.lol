@@ -309,6 +309,57 @@ func (s *Store) DeleteRebindRule(id, userID string) error {
 	return err
 }
 
+// DeleteRebindRuleByID deletes any rebind rule regardless of owner — admin use only.
+func (s *Store) DeleteRebindRuleByID(id string) error {
+	s.queryCounts.Delete(id)
+	_, err := s.db.Exec(`DELETE FROM rebind_rules WHERE id=?`, id)
+	return err
+}
+
+// ListAllRebindRules returns all rebind rules across all users, paginated, joined with owner email.
+func (s *Store) ListAllRebindRules(page, perPage int) ([]*AdminRebindRule, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 25
+	}
+	offset := (page - 1) * perPage
+
+	var total int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM rebind_rules`).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	rows, err := s.db.Query(
+		`SELECT r.id, COALESCE(r.label,''), r.hostname, r.first_ip, r.second_ip, r.threshold, r.user_id,
+		        COALESCE(u.email,'')
+		 FROM rebind_rules r LEFT JOIN users u ON r.user_id = u.id
+		 ORDER BY r.id DESC
+		 LIMIT ? OFFSET ?`,
+		perPage, offset,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var rules []*AdminRebindRule
+	for rows.Next() {
+		ar := &AdminRebindRule{}
+		if err := rows.Scan(
+			&ar.ID, &ar.Label, &ar.Hostname, &ar.FirstIP, &ar.SecondIP,
+			&ar.Threshold, &ar.UserID, &ar.OwnerEmail,
+		); err != nil {
+			return nil, 0, err
+		}
+		ar.QueryCount = s.GetQueryCount(ar.ID)
+		ar.Flipped = ar.QueryCount > int64(ar.Threshold)
+		rules = append(rules, ar)
+	}
+	return rules, total, rows.Err()
+}
+
 // --- DNS rebind query counters (in-memory, intentionally reset on restart) ---
 
 func (s *Store) IncrementQueryCount(id string) int64 {

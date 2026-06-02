@@ -48,6 +48,13 @@ type AdminRule struct {
 	OwnerEmail string `json:"owner_email"`
 }
 
+type AdminRebindRule struct {
+	RebindRule
+	OwnerEmail string `json:"owner_email"`
+	QueryCount int64  `json:"query_count"`
+	Flipped    bool   `json:"flipped"`
+}
+
 type User struct {
 	ID           string    `json:"id"`
 	Email        string    `json:"email"`

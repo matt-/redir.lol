@@ -73,3 +73,47 @@ func (h *Handler) adminDeleteRule(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (h *Handler) adminListRebind(w http.ResponseWriter, r *http.Request) {
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	perPage, _ := strconv.Atoi(r.URL.Query().Get("per_page"))
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 25
+	}
+
+	rules, total, err := h.store.ListAllRebindRules(page, perPage)
+	if err != nil {
+		jsonError(w, err.Error(), 500)
+		return
+	}
+	if rules == nil {
+		rules = []*store.AdminRebindRule{}
+	}
+	jsonOK(w, map[string]interface{}{
+		"rules":    rules,
+		"total":    total,
+		"page":     page,
+		"per_page": perPage,
+	})
+}
+
+func (h *Handler) adminDeleteRebind(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	id := strings.TrimPrefix(r.URL.Path, "/api/admin/rebind/")
+	id = strings.TrimSuffix(id, "/")
+	if id == "" {
+		jsonError(w, "id required", http.StatusBadRequest)
+		return
+	}
+	if err := h.store.DeleteRebindRuleByID(id); err != nil {
+		jsonError(w, err.Error(), 500)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}

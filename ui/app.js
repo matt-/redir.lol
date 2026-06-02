@@ -4,6 +4,8 @@ let cfg = {};
 let presets = [];
 let adminPage = 1;
 let adminTotal = 0;
+let adminRbPage = 1;
+let adminRbTotal = 0;
 const ADMIN_PER_PAGE = 25;
 
 // --- Tab navigation ---
@@ -17,7 +19,7 @@ function showTab(name, btn) {
   if (name === 'rebind') loadRebind();
   if (name === 'hits') loadHits();
   if (name === 'config') loadConfig();
-  if (name === 'admin') { adminPage = 1; loadAdminRules(); }
+  if (name === 'admin') { adminPage = 1; adminRbPage = 1; loadAdminRules(); loadAdminRebind(); }
 }
 
 // --- Auth ---
@@ -442,6 +444,80 @@ function adminPrevPage() {
 
 function adminNextPage() {
   if (adminPage * ADMIN_PER_PAGE < adminTotal) { adminPage++; loadAdminRules(); }
+}
+
+// --- Admin: rebind rules ---
+
+async function loadAdminRebind() {
+  try {
+    const data = await api(`/api/admin/rebind?page=${adminRbPage}&per_page=${ADMIN_PER_PAGE}`);
+    adminRbTotal = data.total;
+    renderAdminRebind(data);
+  } catch(e) { showAlert('admin-alert', e.message, 'error'); }
+}
+
+function renderAdminRebind(data) {
+  const cont = document.getElementById('admin-rebind-container');
+  const { rules, total, page, per_page } = data;
+
+  const start = (page - 1) * per_page + 1;
+  const end = Math.min(page * per_page, total);
+  document.getElementById('admin-rb-page-info').textContent =
+    total === 0 ? 'No rebind rules' : `${start}–${end} of ${total}`;
+  document.getElementById('admin-rb-prev-btn').disabled = page <= 1;
+  document.getElementById('admin-rb-next-btn').disabled = end >= total;
+
+  if (!rules || rules.length === 0) {
+    cont.innerHTML = '<div class="empty-state"><p>No rebind rules found.</p></div>';
+    return;
+  }
+
+  let html = `<table>
+    <thead><tr>
+      <th>Label / ID</th>
+      <th>Hostname</th>
+      <th>First IP</th>
+      <th>Second IP</th>
+      <th>Threshold</th>
+      <th>Queries</th>
+      <th>Status</th>
+      <th>Owner</th>
+      <th>Actions</th>
+    </tr></thead><tbody>`;
+  rules.forEach(r => {
+    const slug = r.label || r.id;
+    const dotClass = r.flipped ? 'flipped' : 'waiting';
+    const statusText = r.flipped ? 'Flipped' : `Waiting (${r.query_count}/${r.threshold})`;
+    html += `<tr>
+      <td class="mono">${escHtml(slug)}</td>
+      <td class="mono" style="font-size:11px">${escHtml(r.hostname)}</td>
+      <td class="mono">${escHtml(r.first_ip)}</td>
+      <td class="mono">${escHtml(r.second_ip)}</td>
+      <td>${r.threshold}</td>
+      <td>${r.query_count}</td>
+      <td><span class="status-dot ${dotClass}"></span>${escHtml(statusText)}</td>
+      <td style="font-size:12px;color:#94a3b8">${escHtml(r.owner_email || '—')}</td>
+      <td><button class="btn danger small" onclick="adminDeleteRebind('${escHtml(r.id)}')">Delete</button></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  cont.innerHTML = html;
+}
+
+async function adminDeleteRebind(id) {
+  if (!confirm('Delete this rebind rule? This cannot be undone.')) return;
+  try {
+    await api('/api/admin/rebind/' + id, 'DELETE');
+    loadAdminRebind();
+  } catch(e) { showAlert('admin-alert', e.message, 'error'); }
+}
+
+function adminRbPrevPage() {
+  if (adminRbPage > 1) { adminRbPage--; loadAdminRebind(); }
+}
+
+function adminRbNextPage() {
+  if (adminRbPage * ADMIN_PER_PAGE < adminRbTotal) { adminRbPage++; loadAdminRebind(); }
 }
 
 // --- Boot ---

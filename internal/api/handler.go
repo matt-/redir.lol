@@ -61,6 +61,8 @@ func (h *Handler) Register(mux *http.ServeMux, protect func(http.Handler) http.H
 	admin := requireAdmin(h.adminEmails, h.store)
 	mux.Handle("/api/admin/rules", protect(admin(http.HandlerFunc(h.adminListRules))))
 	mux.Handle("/api/admin/rules/", protect(admin(http.HandlerFunc(h.adminDeleteRule))))
+	mux.Handle("/api/admin/rebind", protect(admin(http.HandlerFunc(h.adminListRebind))))
+	mux.Handle("/api/admin/rebind/", protect(admin(http.HandlerFunc(h.adminDeleteRebind))))
 }
 
 // --- Rules ---
