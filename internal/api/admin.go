@@ -1,9 +1,12 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/mattaustin/redir/internal/auth"
 	"github.com/mattaustin/redir/internal/store"
@@ -98,6 +101,84 @@ func (h *Handler) adminListRebind(w http.ResponseWriter, r *http.Request) {
 		"page":     page,
 		"per_page": perPage,
 	})
+}
+
+func (h *Handler) adminListUsers(w http.ResponseWriter, r *http.Request) {
+	users, err := h.store.ListUsers()
+	if err != nil {
+		jsonError(w, err.Error(), 500)
+		return
+	}
+	if users == nil {
+		users = []*store.User{}
+	}
+	jsonOK(w, users)
+}
+
+func (h *Handler) adminUserByID(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimPrefix(r.URL.Path, "/api/admin/users/")
+	id = strings.TrimSuffix(id, "/")
+	if id == "" {
+		jsonError(w, "id required", http.StatusBadRequest)
+		return
+	}
+
+	// prevent admin from editing/deleting their own account via this endpoint
+	callerID := auth.UserIDFromCtx(r)
+
+	switch r.Method {
+	case http.MethodPut:
+		var body struct {
+			Email    string `json:"email"`
+			Password string `json:"password"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			jsonError(w, "invalid JSON", http.StatusBadRequest)
+			return
+		}
+		if body.Email != "" {
+			body.Email = strings.TrimSpace(strings.ToLower(body.Email))
+			if err := h.store.UpdateUserEmail(id, body.Email); err != nil {
+				if strings.Contains(err.Error(), "UNIQUE") {
+					jsonError(w, "email already in use", http.StatusConflict)
+					return
+				}
+				jsonError(w, err.Error(), 500)
+				return
+			}
+		}
+		if body.Password != "" {
+			if len(body.Password) < 8 {
+				jsonError(w, "password must be at least 8 characters", http.StatusBadRequest)
+				return
+			}
+			hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
+			if err != nil {
+				jsonError(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+			if err := h.store.UpdateUserPassword(id, string(hash)); err != nil {
+				jsonError(w, err.Error(), 500)
+				return
+			}
+		}
+		u, _ := h.store.GetUserByID(id)
+		jsonOK(w, u)
+
+	case http.MethodDelete:
+		if id == callerID {
+			jsonError(w, "cannot delete your own account", http.StatusBadRequest)
+			return
+		}
+		if err := h.store.DeleteUser(id); err != nil {
+			jsonError(w, err.Error(), 500)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
 }
 
 func (h *Handler) adminDeleteRebind(w http.ResponseWriter, r *http.Request) {

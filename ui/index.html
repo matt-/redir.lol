@@ -206,6 +206,36 @@
       <div id="admin-rebind-container">
         <div class="empty-state"><p>Loading…</p></div>
       </div>
+
+      <div class="section-header" style="margin-top:32px">
+        <h2>Users</h2>
+        <div style="display:flex;align-items:center;gap:12px">
+          <button class="btn danger small" id="admin-usr-delete-selected-btn" style="display:none" onclick="adminUsrDeleteSelected()">Delete Selected</button>
+        </div>
+      </div>
+      <div id="admin-users-container">
+        <div class="empty-state"><p>Loading…</p></div>
+      </div>
+
+      <!-- inline edit modal -->
+      <div id="user-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:none;align-items:center;justify-content:center">
+        <div class="form-card" style="width:380px;position:relative">
+          <h3 id="user-edit-title">Edit User</h3>
+          <input type="hidden" id="user-edit-id">
+          <div class="form-group" style="margin-bottom:10px">
+            <label>Email</label>
+            <input id="user-edit-email" type="email" autocomplete="off">
+          </div>
+          <div class="form-group" style="margin-bottom:14px">
+            <label>New Password <span style="color:#64748b;font-size:11px">(leave blank to keep current)</span></label>
+            <input id="user-edit-password" type="password" placeholder="min 8 characters" autocomplete="new-password">
+          </div>
+          <div class="form-actions">
+            <button class="btn" onclick="adminSaveUser()">Save</button>
+            <button class="btn secondary" onclick="closeUserEdit()">Cancel</button>
+          </div>
+        </div>
+      </div>
     </div>
   </main>
 

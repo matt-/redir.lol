@@ -19,7 +19,7 @@ function showTab(name, btn) {
   if (name === 'rebind') loadRebind();
   if (name === 'hits') loadHits();
   if (name === 'config') loadConfig();
-  if (name === 'admin') { adminPage = 1; adminRbPage = 1; loadAdminRules(); loadAdminRebind(); }
+  if (name === 'admin') { adminPage = 1; adminRbPage = 1; loadAdminRules(); loadAdminRebind(); loadAdminUsers(); }
 }
 
 // --- Auth ---
@@ -559,6 +559,101 @@ async function adminRbDeleteSelected() {
   try {
     await Promise.all(ids.map(id => api('/api/admin/rebind/' + id, 'DELETE')));
     loadAdminRebind();
+  } catch(e) { showAlert('admin-alert', e.message, 'error'); }
+}
+
+// --- Admin: users ---
+
+async function loadAdminUsers() {
+  try {
+    const users = await api('/api/admin/users');
+    renderAdminUsers(users);
+  } catch(e) { showAlert('admin-alert', e.message, 'error'); }
+}
+
+function renderAdminUsers(users) {
+  const cont = document.getElementById('admin-users-container');
+  if (!users || users.length === 0) {
+    cont.innerHTML = '<div class="empty-state"><p>No users found.</p></div>';
+    return;
+  }
+  let html = `<table>
+    <thead><tr>
+      <th><input type="checkbox" id="admin-usr-select-all" onchange="adminUsrToggleAll(this)"></th>
+      <th>Email</th>
+      <th>ID</th>
+      <th>Created</th>
+      <th>Actions</th>
+    </tr></thead><tbody>`;
+  users.forEach(u => {
+    const created = new Date(u.created_at).toLocaleDateString();
+    html += `<tr>
+      <td><input type="checkbox" class="admin-usr-cb" value="${escHtml(u.id)}" onchange="adminUsrUpdateDeleteBtn()"></td>
+      <td>${escHtml(u.email)}</td>
+      <td class="mono" style="font-size:11px;color:#64748b">${escHtml(u.id)}</td>
+      <td class="timestamp">${created}</td>
+      <td style="display:flex;gap:6px">
+        <button class="btn secondary small" onclick="openUserEdit('${escHtml(u.id)}','${escHtml(u.email)}')">Edit</button>
+        <button class="btn danger small" onclick="adminDeleteUser('${escHtml(u.id)}')">Delete</button>
+      </td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  cont.innerHTML = html;
+}
+
+function openUserEdit(id, email) {
+  document.getElementById('user-edit-id').value = id;
+  document.getElementById('user-edit-email').value = email;
+  document.getElementById('user-edit-password').value = '';
+  document.getElementById('user-edit-title').textContent = `Edit: ${email}`;
+  document.getElementById('user-edit-modal').classList.add('modal-open');
+}
+
+function closeUserEdit() {
+  document.getElementById('user-edit-modal').classList.remove('modal-open');
+}
+
+async function adminSaveUser() {
+  const id       = document.getElementById('user-edit-id').value;
+  const email    = document.getElementById('user-edit-email').value.trim();
+  const password = document.getElementById('user-edit-password').value;
+  if (!email) { showAlert('admin-alert', 'Email is required', 'error'); closeUserEdit(); return; }
+  try {
+    await api('/api/admin/users/' + id, 'PUT', { email, password: password || undefined });
+    closeUserEdit();
+    loadAdminUsers();
+  } catch(e) { showAlert('admin-alert', e.message, 'error'); closeUserEdit(); }
+}
+
+async function adminDeleteUser(id) {
+  if (!confirm('Delete this user? Their rules will be disowned but not deleted.')) return;
+  try {
+    await api('/api/admin/users/' + id, 'DELETE');
+    loadAdminUsers();
+  } catch(e) { showAlert('admin-alert', e.message, 'error'); }
+}
+
+function adminUsrToggleAll(cb) {
+  document.querySelectorAll('.admin-usr-cb').forEach(el => el.checked = cb.checked);
+  adminUsrUpdateDeleteBtn();
+}
+
+function adminUsrUpdateDeleteBtn() {
+  const any = [...document.querySelectorAll('.admin-usr-cb')].some(el => el.checked);
+  document.getElementById('admin-usr-delete-selected-btn').style.display = any ? '' : 'none';
+  const all = [...document.querySelectorAll('.admin-usr-cb')].every(el => el.checked);
+  const selectAll = document.getElementById('admin-usr-select-all');
+  if (selectAll) selectAll.checked = all;
+}
+
+async function adminUsrDeleteSelected() {
+  const ids = [...document.querySelectorAll('.admin-usr-cb:checked')].map(el => el.value);
+  if (!ids.length) return;
+  if (!confirm(`Delete ${ids.length} user${ids.length > 1 ? 's' : ''}? Their rules will be disowned but not deleted.`)) return;
+  try {
+    await Promise.all(ids.map(id => api('/api/admin/users/' + id, 'DELETE')));
+    loadAdminUsers();
   } catch(e) { showAlert('admin-alert', e.message, 'error'); }
 }
 

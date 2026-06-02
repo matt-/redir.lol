@@ -86,3 +86,40 @@ func (s *Store) DeleteSession(token string) error {
 func (s *Store) DeleteExpiredSessions() {
 	s.db.Exec(`DELETE FROM sessions WHERE expires_at < ?`, time.Now().UTC())
 }
+
+func (s *Store) ListUsers() ([]*User, error) {
+	rows, err := s.db.Query(
+		`SELECT id, email, created_at FROM users ORDER BY created_at ASC`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var users []*User
+	for rows.Next() {
+		u := &User{}
+		if err := rows.Scan(&u.ID, &u.Email, &u.CreatedAt); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, rows.Err()
+}
+
+func (s *Store) UpdateUserEmail(id, email string) error {
+	_, err := s.db.Exec(`UPDATE users SET email=? WHERE id=?`, email, id)
+	return err
+}
+
+func (s *Store) UpdateUserPassword(id, passwordHash string) error {
+	_, err := s.db.Exec(`UPDATE users SET password_hash=? WHERE id=?`, passwordHash, id)
+	return err
+}
+
+func (s *Store) DeleteUser(id string) error {
+	s.db.Exec(`DELETE FROM sessions WHERE user_id=?`, id)
+	s.db.Exec(`UPDATE rules SET user_id='' WHERE user_id=?`, id)
+	s.db.Exec(`UPDATE rebind_rules SET user_id='' WHERE user_id=?`, id)
+	_, err := s.db.Exec(`DELETE FROM users WHERE id=?`, id)
+	return err
+}

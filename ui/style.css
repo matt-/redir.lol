@@ -249,6 +249,9 @@ tr:hover td { background: #1e2130; }
 }
 .empty-state p { font-size: 14px; }
 
+/* Modal */
+.modal-open { display: flex !important; }
+
 /* Alert */
 .alert {
   padding: 10px 14px;
