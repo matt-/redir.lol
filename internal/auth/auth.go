@@ -164,7 +164,7 @@ func LogoutHandler(s *store.Store) http.HandlerFunc {
 }
 
 // MeHandler handles GET /api/auth/me — returns current user or 401
-func MeHandler(s *store.Store) http.HandlerFunc {
+func MeHandler(s *store.Store, adminEmails []string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID := UserIDFromCtx(r)
 		u, err := s.GetUserByID(userID)
@@ -172,9 +172,17 @@ func MeHandler(s *store.Store) http.HandlerFunc {
 			jsonError(w, "not found", http.StatusUnauthorized)
 			return
 		}
+		isAdmin := false
+		for _, e := range adminEmails {
+			if e == u.Email {
+				isAdmin = true
+				break
+			}
+		}
 		jsonOK(w, map[string]interface{}{
-			"id":    u.ID,
-			"email": u.Email,
+			"id":       u.ID,
+			"email":    u.Email,
+			"is_admin": isAdmin,
 		})
 	}
 }

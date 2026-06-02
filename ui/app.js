@@ -2,6 +2,9 @@
 
 let cfg = {};
 let presets = [];
+let adminPage = 1;
+let adminTotal = 0;
+const ADMIN_PER_PAGE = 25;
 
 // --- Tab navigation ---
 
@@ -14,6 +17,7 @@ function showTab(name, btn) {
   if (name === 'rebind') loadRebind();
   if (name === 'hits') loadHits();
   if (name === 'config') loadConfig();
+  if (name === 'admin') { adminPage = 1; loadAdminRules(); }
 }
 
 // --- Auth ---
@@ -34,6 +38,7 @@ function showApp(me) {
   const ui = document.getElementById('user-info');
   ui.innerHTML = `<span>${escHtml(me.email)}</span>
     <button class="btn secondary small" onclick="logout()">Logout</button>`;
+  document.getElementById('admin-tab-btn').style.display = me.is_admin ? '' : 'none';
 }
 
 function showLogin() {
@@ -53,7 +58,8 @@ async function login() {
   const password = document.getElementById('login-password').value;
   if (!email || !password) { showAuthAlert('Email and password are required'); return; }
   try {
-    const me = await api('/api/auth/login', 'POST', { email, password });
+    await api('/api/auth/login', 'POST', { email, password });
+    const me = await api('/api/auth/me');
     showApp(me);
     initApp();
   } catch(e) { showAuthAlert(e.message); }
@@ -64,7 +70,8 @@ async function register() {
   const password = document.getElementById('reg-password').value;
   if (!email || !password) { showAuthAlert('Email and password are required'); return; }
   try {
-    const me = await api('/api/auth/register', 'POST', { email, password });
+    await api('/api/auth/register', 'POST', { email, password });
+    const me = await api('/api/auth/me');
     showApp(me);
     initApp();
   } catch(e) { showAuthAlert(e.message); }
@@ -366,6 +373,75 @@ function copyText(btn, text) {
     btn.classList.add('copied');
     setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 1500);
   });
+}
+
+// --- Admin ---
+
+async function loadAdminRules() {
+  try {
+    const data = await api(`/api/admin/rules?page=${adminPage}&per_page=${ADMIN_PER_PAGE}`);
+    adminTotal = data.total;
+    renderAdminRules(data);
+  } catch(e) { showAlert('admin-alert', e.message, 'error'); }
+}
+
+function renderAdminRules(data) {
+  const cont = document.getElementById('admin-container');
+  const { rules, total, page, per_page } = data;
+
+  const start = (page - 1) * per_page + 1;
+  const end = Math.min(page * per_page, total);
+  document.getElementById('admin-page-info').textContent =
+    total === 0 ? 'No rules' : `${start}–${end} of ${total}`;
+  document.getElementById('admin-prev-btn').disabled = page <= 1;
+  document.getElementById('admin-next-btn').disabled = end >= total;
+
+  if (!rules || rules.length === 0) {
+    cont.innerHTML = '<div class="empty-state"><p>No rules found.</p></div>';
+    return;
+  }
+
+  let html = `<table>
+    <thead><tr>
+      <th>Label / ID</th>
+      <th>Type</th>
+      <th>Target URL</th>
+      <th>Owner</th>
+      <th>Hits</th>
+      <th>Created</th>
+      <th>Actions</th>
+    </tr></thead><tbody>`;
+  rules.forEach(r => {
+    const slug = r.label || r.id;
+    const created = new Date(r.created_at).toLocaleDateString();
+    html += `<tr>
+      <td class="mono">${escHtml(slug)}</td>
+      <td>${typeLabel(r)}</td>
+      <td class="mono" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(r.target_url)}">${escHtml(r.target_url)}</td>
+      <td style="font-size:12px;color:#94a3b8">${escHtml(r.owner_email || '—')}</td>
+      <td><span class="hit-count ${r.hit_count > 0 ? 'has-hits' : ''}">${r.hit_count}</span></td>
+      <td class="timestamp">${created}</td>
+      <td><button class="btn danger small" onclick="adminDeleteRule('${escHtml(r.id)}')">Delete</button></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  cont.innerHTML = html;
+}
+
+async function adminDeleteRule(id) {
+  if (!confirm('Delete this rule? This cannot be undone.')) return;
+  try {
+    await api('/api/admin/rules/' + id, 'DELETE');
+    loadAdminRules();
+  } catch(e) { showAlert('admin-alert', e.message, 'error'); }
+}
+
+function adminPrevPage() {
+  if (adminPage > 1) { adminPage--; loadAdminRules(); }
+}
+
+function adminNextPage() {
+  if (adminPage * ADMIN_PER_PAGE < adminTotal) { adminPage++; loadAdminRules(); }
 }
 
 // --- Boot ---

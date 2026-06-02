@@ -152,6 +152,55 @@ func (s *Store) DeleteRule(id, userID string) error {
 	return err
 }
 
+// DeleteRuleByID deletes any rule regardless of owner — admin use only.
+func (s *Store) DeleteRuleByID(id string) error {
+	_, err := s.db.Exec(`DELETE FROM rules WHERE id=?`, id)
+	return err
+}
+
+// ListAllRules returns all rules across all users, paginated, joined with owner email.
+// Returns the rules, total count, and any error.
+func (s *Store) ListAllRules(page, perPage int) ([]*AdminRule, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 25
+	}
+	offset := (page - 1) * perPage
+
+	var total int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM rules`).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	rows, err := s.db.Query(
+		`SELECT r.id, COALESCE(r.label,''), r.target_url, r.type, r.status_code, r.hit_count, r.user_id, r.created_at,
+		        COALESCE(u.email,'')
+		 FROM rules r LEFT JOIN users u ON r.user_id = u.id
+		 ORDER BY r.created_at DESC
+		 LIMIT ? OFFSET ?`,
+		perPage, offset,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var rules []*AdminRule
+	for rows.Next() {
+		ar := &AdminRule{}
+		if err := rows.Scan(
+			&ar.ID, &ar.Label, &ar.TargetURL, &ar.Type, &ar.StatusCode,
+			&ar.HitCount, &ar.UserID, &ar.CreatedAt, &ar.OwnerEmail,
+		); err != nil {
+			return nil, 0, err
+		}
+		rules = append(rules, ar)
+	}
+	return rules, total, rows.Err()
+}
+
 func (s *Store) IncrementHitCount(ruleID string) {
 	s.db.Exec(`UPDATE rules SET hit_count = hit_count + 1 WHERE id=?`, ruleID)
 }

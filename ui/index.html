@@ -62,6 +62,7 @@
     <button onclick="showTab('rebind', this)">DNS Rebind</button>
     <button onclick="showTab('hits', this)">Hit Log</button>
     <button onclick="showTab('config', this)">Config</button>
+    <button id="admin-tab-btn" style="display:none" onclick="showTab('admin', this)">Admin</button>
   </nav>
 
   <main id="main-content" style="display:none">
@@ -174,6 +175,22 @@
     <!-- Config Tab -->
     <div id="tab-config" class="tab-pane">
       <div id="config-container"></div>
+    </div>
+
+    <!-- Admin Tab -->
+    <div id="tab-admin" class="tab-pane">
+      <div class="section-header">
+        <h2>All Rules</h2>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span id="admin-page-info" style="font-size:12px;color:#64748b"></span>
+          <button class="btn secondary small" id="admin-prev-btn" onclick="adminPrevPage()">Prev</button>
+          <button class="btn secondary small" id="admin-next-btn" onclick="adminNextPage()">Next</button>
+        </div>
+      </div>
+      <div id="admin-alert"></div>
+      <div id="admin-container">
+        <div class="empty-state"><p>Loading…</p></div>
+      </div>
     </div>
   </main>
 

@@ -43,6 +43,11 @@ type Hit struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+type AdminRule struct {
+	Rule
+	OwnerEmail string `json:"owner_email"`
+}
+
 type User struct {
 	ID           string    `json:"id"`
 	Email        string    `json:"email"`
