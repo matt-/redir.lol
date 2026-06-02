@@ -405,6 +405,7 @@ function renderAdminRules(data) {
 
   let html = `<table>
     <thead><tr>
+      <th><input type="checkbox" id="admin-select-all" onchange="adminToggleAll(this)"></th>
       <th>Label / ID</th>
       <th>Type</th>
       <th>Target URL</th>
@@ -417,6 +418,7 @@ function renderAdminRules(data) {
     const slug = r.label || r.id;
     const created = new Date(r.created_at).toLocaleDateString();
     html += `<tr>
+      <td><input type="checkbox" class="admin-rule-cb" value="${escHtml(r.id)}" onchange="adminUpdateDeleteBtn()"></td>
       <td class="mono">${escHtml(slug)}</td>
       <td>${typeLabel(r)}</td>
       <td class="mono" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(r.target_url)}">${escHtml(r.target_url)}</td>
@@ -434,6 +436,29 @@ async function adminDeleteRule(id) {
   if (!confirm('Delete this rule? This cannot be undone.')) return;
   try {
     await api('/api/admin/rules/' + id, 'DELETE');
+    loadAdminRules();
+  } catch(e) { showAlert('admin-alert', e.message, 'error'); }
+}
+
+function adminToggleAll(cb) {
+  document.querySelectorAll('.admin-rule-cb').forEach(el => el.checked = cb.checked);
+  adminUpdateDeleteBtn();
+}
+
+function adminUpdateDeleteBtn() {
+  const any = [...document.querySelectorAll('.admin-rule-cb')].some(el => el.checked);
+  document.getElementById('admin-delete-selected-btn').style.display = any ? '' : 'none';
+  const all = [...document.querySelectorAll('.admin-rule-cb')].every(el => el.checked);
+  const selectAll = document.getElementById('admin-select-all');
+  if (selectAll) selectAll.checked = all;
+}
+
+async function adminDeleteSelected() {
+  const ids = [...document.querySelectorAll('.admin-rule-cb:checked')].map(el => el.value);
+  if (!ids.length) return;
+  if (!confirm(`Delete ${ids.length} rule${ids.length > 1 ? 's' : ''}? This cannot be undone.`)) return;
+  try {
+    await Promise.all(ids.map(id => api('/api/admin/rules/' + id, 'DELETE')));
     loadAdminRules();
   } catch(e) { showAlert('admin-alert', e.message, 'error'); }
 }
@@ -474,6 +499,7 @@ function renderAdminRebind(data) {
 
   let html = `<table>
     <thead><tr>
+      <th><input type="checkbox" id="admin-rb-select-all" onchange="adminRbToggleAll(this)"></th>
       <th>Label / ID</th>
       <th>Hostname</th>
       <th>First IP</th>
@@ -489,6 +515,7 @@ function renderAdminRebind(data) {
     const dotClass = r.flipped ? 'flipped' : 'waiting';
     const statusText = r.flipped ? 'Flipped' : `Waiting (${r.query_count}/${r.threshold})`;
     html += `<tr>
+      <td><input type="checkbox" class="admin-rb-cb" value="${escHtml(r.id)}" onchange="adminRbUpdateDeleteBtn()"></td>
       <td class="mono">${escHtml(slug)}</td>
       <td class="mono" style="font-size:11px">${escHtml(r.hostname)}</td>
       <td class="mono">${escHtml(r.first_ip)}</td>
@@ -508,6 +535,29 @@ async function adminDeleteRebind(id) {
   if (!confirm('Delete this rebind rule? This cannot be undone.')) return;
   try {
     await api('/api/admin/rebind/' + id, 'DELETE');
+    loadAdminRebind();
+  } catch(e) { showAlert('admin-alert', e.message, 'error'); }
+}
+
+function adminRbToggleAll(cb) {
+  document.querySelectorAll('.admin-rb-cb').forEach(el => el.checked = cb.checked);
+  adminRbUpdateDeleteBtn();
+}
+
+function adminRbUpdateDeleteBtn() {
+  const any = [...document.querySelectorAll('.admin-rb-cb')].some(el => el.checked);
+  document.getElementById('admin-rb-delete-selected-btn').style.display = any ? '' : 'none';
+  const all = [...document.querySelectorAll('.admin-rb-cb')].every(el => el.checked);
+  const selectAll = document.getElementById('admin-rb-select-all');
+  if (selectAll) selectAll.checked = all;
+}
+
+async function adminRbDeleteSelected() {
+  const ids = [...document.querySelectorAll('.admin-rb-cb:checked')].map(el => el.value);
+  if (!ids.length) return;
+  if (!confirm(`Delete ${ids.length} rebind rule${ids.length > 1 ? 's' : ''}? This cannot be undone.`)) return;
+  try {
+    await Promise.all(ids.map(id => api('/api/admin/rebind/' + id, 'DELETE')));
     loadAdminRebind();
   } catch(e) { showAlert('admin-alert', e.message, 'error'); }
 }
