@@ -1,10 +1,12 @@
 .PHONY: build build-linux run run-root pf-redirect iptables-redirect clean
 
+LDFLAGS := -ldflags="-s -w"
+
 build:
-	go build -o redir .
+	go build $(LDFLAGS) -o redir .
 
 build-linux:
-	GOOS=linux GOARCH=amd64 go build -o redir-linux .
+	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o redir-linux .
 
 run:
 	go run . -port 8080 -dns-port 5300
