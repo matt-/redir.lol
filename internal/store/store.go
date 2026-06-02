@@ -16,7 +16,6 @@ const schema = `
 CREATE TABLE IF NOT EXISTS users (
 	id            TEXT PRIMARY KEY,
 	email         TEXT UNIQUE NOT NULL,
-	username      TEXT UNIQUE NOT NULL,
 	password_hash TEXT NOT NULL,
 	created_at    DATETIME NOT NULL
 );
@@ -65,6 +64,48 @@ var migrations = []string{
 	`ALTER TABLE rebind_rules ADD COLUMN user_id TEXT NOT NULL DEFAULT ''`,
 }
 
+// migrateDropUsername removes the username column from the users table if it
+// still exists from the previous schema. SQLite < 3.35 has no DROP COLUMN, so
+// we use the rename-recreate-copy pattern inside a transaction.
+func migrateDropUsername(db *sql.DB) error {
+	// check whether the column still exists
+	rows, err := db.Query(`PRAGMA table_info(users)`)
+	if err != nil {
+		return err
+	}
+	hasUsername := false
+	for rows.Next() {
+		var cid int
+		var name, typ string
+		var notnull, pk int
+		var dflt interface{}
+		rows.Scan(&cid, &name, &typ, &notnull, &dflt, &pk)
+		if name == "username" {
+			hasUsername = true
+		}
+	}
+	rows.Close()
+	if !hasUsername {
+		return nil
+	}
+
+	_, err = db.Exec(`
+		BEGIN;
+		ALTER TABLE users RENAME TO users_old;
+		CREATE TABLE users (
+			id            TEXT PRIMARY KEY,
+			email         TEXT UNIQUE NOT NULL,
+			password_hash TEXT NOT NULL,
+			created_at    DATETIME NOT NULL
+		);
+		INSERT INTO users (id, email, password_hash, created_at)
+			SELECT id, email, password_hash, created_at FROM users_old;
+		DROP TABLE users_old;
+		COMMIT;
+	`)
+	return err
+}
+
 type Store struct {
 	db          *sql.DB
 	queryCounts sync.Map // rebind ID -> *atomic.Int64
@@ -81,6 +122,9 @@ func Open(path string) (*Store, error) {
 	}
 	for _, m := range migrations {
 		db.Exec(m) // ignore "duplicate column" errors on existing DBs
+	}
+	if err := migrateDropUsername(db); err != nil {
+		return nil, fmt.Errorf("migrate users table: %w", err)
 	}
 	return &Store{db: db}, nil
 }

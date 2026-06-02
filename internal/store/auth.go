@@ -23,8 +23,8 @@ func (s *Store) CreateUser(u *User) error {
 		u.CreatedAt = time.Now().UTC()
 	}
 	_, err := s.db.Exec(
-		`INSERT INTO users (id, email, username, password_hash, created_at) VALUES (?, ?, ?, ?, ?)`,
-		u.ID, u.Email, u.Username, u.PasswordHash, u.CreatedAt,
+		`INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)`,
+		u.ID, u.Email, u.PasswordHash, u.CreatedAt,
 	)
 	return err
 }
@@ -32,8 +32,8 @@ func (s *Store) CreateUser(u *User) error {
 func (s *Store) GetUserByEmail(email string) (*User, error) {
 	u := &User{}
 	err := s.db.QueryRow(
-		`SELECT id, email, username, password_hash, created_at FROM users WHERE email=?`, email,
-	).Scan(&u.ID, &u.Email, &u.Username, &u.PasswordHash, &u.CreatedAt)
+		`SELECT id, email, password_hash, created_at FROM users WHERE email=?`, email,
+	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.CreatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -43,8 +43,8 @@ func (s *Store) GetUserByEmail(email string) (*User, error) {
 func (s *Store) GetUserByID(id string) (*User, error) {
 	u := &User{}
 	err := s.db.QueryRow(
-		`SELECT id, email, username, password_hash, created_at FROM users WHERE id=?`, id,
-	).Scan(&u.ID, &u.Email, &u.Username, &u.PasswordHash, &u.CreatedAt)
+		`SELECT id, email, password_hash, created_at FROM users WHERE id=?`, id,
+	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.CreatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}

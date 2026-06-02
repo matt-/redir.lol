@@ -32,7 +32,7 @@ function showApp(me) {
   document.getElementById('main-content').style.display = '';
 
   const ui = document.getElementById('user-info');
-  ui.innerHTML = `<span>${escHtml(me.username)}</span>
+  ui.innerHTML = `<span>${escHtml(me.email)}</span>
     <button class="btn secondary small" onclick="logout()">Logout</button>`;
 }
 
@@ -61,11 +61,10 @@ async function login() {
 
 async function register() {
   const email    = document.getElementById('reg-email').value.trim();
-  const username = document.getElementById('reg-username').value.trim();
   const password = document.getElementById('reg-password').value;
-  if (!email || !username || !password) { showAuthAlert('All fields are required'); return; }
+  if (!email || !password) { showAuthAlert('Email and password are required'); return; }
   try {
-    const me = await api('/api/auth/register', 'POST', { email, username, password });
+    const me = await api('/api/auth/register', 'POST', { email, password });
     showApp(me);
     initApp();
   } catch(e) { showAuthAlert(e.message); }

@@ -55,7 +55,6 @@ func RegisterHandler(s *store.Store) http.HandlerFunc {
 		}
 		var body struct {
 			Email    string `json:"email"`
-			Username string `json:"username"`
 			Password string `json:"password"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -63,9 +62,8 @@ func RegisterHandler(s *store.Store) http.HandlerFunc {
 			return
 		}
 		body.Email = strings.TrimSpace(strings.ToLower(body.Email))
-		body.Username = strings.TrimSpace(body.Username)
-		if body.Email == "" || body.Username == "" || body.Password == "" {
-			jsonError(w, "email, username, and password are required", http.StatusBadRequest)
+		if body.Email == "" || body.Password == "" {
+			jsonError(w, "email and password are required", http.StatusBadRequest)
 			return
 		}
 		if len(body.Password) < 8 {
@@ -81,7 +79,6 @@ func RegisterHandler(s *store.Store) http.HandlerFunc {
 
 		u := &store.User{
 			Email:        body.Email,
-			Username:     body.Username,
 			PasswordHash: string(hash),
 		}
 		if err := s.CreateUser(u); err != nil {
@@ -102,9 +99,8 @@ func RegisterHandler(s *store.Store) http.HandlerFunc {
 		setCookie(w, sess.Token, sess.ExpiresAt)
 		w.WriteHeader(http.StatusCreated)
 		jsonOK(w, map[string]interface{}{
-			"id":       u.ID,
-			"email":    u.Email,
-			"username": u.Username,
+			"id":    u.ID,
+			"email": u.Email,
 		})
 	}
 }
@@ -145,9 +141,8 @@ func LoginHandler(s *store.Store) http.HandlerFunc {
 
 		setCookie(w, sess.Token, sess.ExpiresAt)
 		jsonOK(w, map[string]interface{}{
-			"id":       u.ID,
-			"email":    u.Email,
-			"username": u.Username,
+			"id":    u.ID,
+			"email": u.Email,
 		})
 	}
 }
@@ -178,9 +173,8 @@ func MeHandler(s *store.Store) http.HandlerFunc {
 			return
 		}
 		jsonOK(w, map[string]interface{}{
-			"id":       u.ID,
-			"email":    u.Email,
-			"username": u.Username,
+			"id":    u.ID,
+			"email": u.Email,
 		})
 	}
 }
