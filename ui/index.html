@@ -61,7 +61,7 @@
   <nav id="main-nav" style="display:none">
     <button class="active" onclick="showTab('redirects', this)">Redirects</button>
     <button onclick="showTab('rebind', this)">DNS Rebind</button>
-    <button onclick="showTab('hits', this)">Hit Log</button>
+    <button onclick="showTab('hits', this)">Logs</button>
     <button id="admin-tab-btn" style="display:none" onclick="showTab('admin', this)">Admin</button>
   </nav>
 
@@ -146,6 +146,12 @@
             <label>Flip after N queries</label>
             <input id="rb-threshold" type="number" value="1" min="1">
           </div>
+          <div class="form-group" style="justify-content:flex-end">
+            <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+              <input id="rb-flip-flop" type="checkbox">
+              Flip flop (alternate continuously)
+            </label>
+          </div>
         </div>
         <div class="form-actions">
           <button class="btn" onclick="createRebind()">Create Rebind Rule</button>
@@ -164,7 +170,7 @@
     <!-- Hit Log Tab -->
     <div id="tab-hits" class="tab-pane">
       <div class="section-header">
-        <h2>Recent Hits</h2>
+        <h2>Logs</h2>
         <button class="btn secondary" onclick="loadHits()">Refresh</button>
       </div>
       <div id="hits-container">
@@ -233,7 +239,7 @@
       <!-- Sub-pane: Logs -->
       <div id="admin-pane-logs" class="admin-pane" style="display:none">
         <div class="section-header">
-          <h2>All Hits</h2>
+          <h2>Logs</h2>
           <button class="btn secondary small" onclick="loadAdminHits()">Refresh</button>
         </div>
         <div id="admin-hits-container">

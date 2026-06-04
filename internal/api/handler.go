@@ -178,7 +178,7 @@ func (h *Handler) rebind(w http.ResponseWriter, r *http.Request) {
 			out[i] = rebindWithCount{
 				RebindRule: rr,
 				QueryCount: qc,
-				Flipped:    qc > int64(rr.Threshold),
+				Flipped:    store.IsFlipped(qc, int64(rr.Threshold), rr.FlipFlop),
 			}
 		}
 		jsonOK(w, out)
@@ -198,7 +198,7 @@ func (h *Handler) rebind(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if rr.Hostname == "" {
-			rr.Hostname = "rebind-" + rr.ID + "." + h.config.Domain
+			rr.Hostname = rr.ID + "." + h.config.Domain
 			h.store.UpdateRebindHostname(rr.ID, rr.Hostname)
 		}
 		w.WriteHeader(http.StatusCreated)

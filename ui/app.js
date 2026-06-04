@@ -10,15 +10,48 @@ const ADMIN_PER_PAGE = 25;
 
 // --- Tab navigation ---
 
-function showTab(name, btn) {
+const TAB_PATHS   = { redirects: '/', rebind: '/rebind', hits: '/hits', admin: '/admin' };
+const ADMIN_PATHS = { redirects: '/admin', users: '/admin/users', logs: '/admin/logs', config: '/admin/config' };
+
+let rebindPollInterval = null;
+
+function showTab(name, btn, pushHistory = true) {
   document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
-  btn.classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (pushHistory) history.pushState({ tab: name }, '', TAB_PATHS[name] || '/');
   if (name === 'redirects') loadRules();
-  if (name === 'rebind') loadRebind();
+  if (name === 'rebind') { loadRebind(); startRebindPoll(); }
   if (name === 'hits') loadHits();
-  if (name === 'admin') { showAdminPane('redirects', document.querySelector('.admin-sidebar-item')); }
+  if (name === 'admin') { showAdminPane('redirects', document.querySelector('.admin-sidebar-item'), false); }
+  if (name !== 'rebind') stopRebindPoll();
+}
+
+function startRebindPoll() {
+  stopRebindPoll();
+  rebindPollInterval = setInterval(pollRebindCounts, 2000);
+}
+
+function stopRebindPoll() {
+  if (rebindPollInterval) { clearInterval(rebindPollInterval); rebindPollInterval = null; }
+}
+
+async function pollRebindCounts() {
+  let rules;
+  try { rules = await api('/api/rebind'); } catch(e) { return; }
+  rules.forEach(r => {
+    const countEl  = document.getElementById('rb-count-'  + r.id);
+    const statusEl = document.getElementById('rb-status-' + r.id);
+    if (!countEl || !statusEl) return;
+    countEl.textContent = r.query_count;
+    statusEl.innerHTML  = rebindStatusHtml(r);
+  });
+}
+
+function tabBtnFor(name) {
+  const path = TAB_PATHS[name];
+  return document.querySelector(`nav button[onclick*="'${name}'"]`);
 }
 
 // --- Auth ---
@@ -95,13 +128,13 @@ async function init() {
   try {
     const me = await api('/api/auth/me');
     showApp(me);
-    initApp();
+    initApp(me);
   } catch(e) {
     showAuthPane();
   }
 }
 
-async function initApp() {
+async function initApp(me) {
   try {
     const [p, c] = await Promise.all([api('/api/presets'), api('/api/config')]);
     presets = p;
@@ -118,7 +151,27 @@ async function initApp() {
       document.getElementById('rb-first-ip').value = cfg.public_ip;
     }
   } catch(e) { console.error('initApp', e); }
-  loadRules();
+
+  routeFromPath(location.pathname, false);
+
+  window.addEventListener('popstate', () => routeFromPath(location.pathname, false));
+}
+
+function routeFromPath(path, pushHistory) {
+  if (path.startsWith('/admin')) {
+    showTab('admin', tabBtnFor('admin'), pushHistory);
+    const pane = path === '/admin/users'  ? 'users'
+               : path === '/admin/logs'   ? 'logs'
+               : path === '/admin/config' ? 'config'
+               : 'redirects';
+    showAdminPane(pane, adminPaneBtnFor(pane), pushHistory);
+  } else if (path === '/rebind') {
+    showTab('rebind', tabBtnFor('rebind'), pushHistory);
+  } else if (path === '/hits') {
+    showTab('hits', tabBtnFor('hits'), pushHistory);
+  } else {
+    showTab('redirects', tabBtnFor('redirects'), pushHistory);
+  }
 }
 
 // --- API helpers ---
@@ -227,6 +280,18 @@ async function deleteRule(id) {
 
 // --- Rebind Rules ---
 
+function rebindStatusHtml(r) {
+  if (r.flip_flop) {
+    const curr = r.flipped ? r.second_ip : r.first_ip;
+    const next = r.flipped ? r.first_ip  : r.second_ip;
+    const dot  = r.flipped ? 'flipped' : 'waiting';
+    return `<span style="white-space:nowrap"><span class="status-dot ${dot}"></span><span class="mono">${escHtml(curr)} → ${escHtml(next)}</span></span>`;
+  }
+  const dot  = r.flipped ? 'flipped' : 'waiting';
+  const text = r.flipped ? 'Flipped → ' + r.second_ip : 'Waiting (' + r.query_count + '/' + r.threshold + ')';
+  return `<span style="white-space:nowrap"><span class="status-dot ${dot}"></span>${escHtml(text)}</span>`;
+}
+
 async function loadRebind() {
   try {
     const rules = await api('/api/rebind');
@@ -246,23 +311,24 @@ function renderRebind(rules) {
       <th>Hostname</th>
       <th>First IP</th>
       <th>Second IP</th>
-      <th>Threshold</th>
-      <th>Query Count</th>
+      <th>N</th>
+      <th>Mode</th>
+      <th>Queries</th>
       <th>Status</th>
       <th>Actions</th>
     </tr></thead><tbody>`;
   rules.forEach(r => {
     const slug = r.label || r.id;
-    const dotFlipped = r.flipped ? 'flipped' : 'waiting';
-    const statusText = r.flipped ? 'Flipped → ' + r.second_ip : 'Waiting (' + r.query_count + '/' + r.threshold + ')';
+    const modeText = r.flip_flop ? 'flip‑flop' : 'latch';
     html += `<tr>
       <td class="mono">${escHtml(slug)}</td>
-      <td class="mono" style="font-size:11px">${escHtml(r.hostname)} <button class="copy-btn" onclick="copyText(this,'${escHtml(r.hostname)}')">copy</button></td>
+      <td class="mono" style="font-size:11px;white-space:nowrap">${escHtml(r.hostname)} <button class="copy-btn" onclick="copyText(this,'${escHtml(r.hostname)}')">copy</button></td>
       <td class="mono">${escHtml(r.first_ip)}</td>
       <td class="mono">${escHtml(r.second_ip)}</td>
       <td>${r.threshold}</td>
-      <td>${r.query_count}</td>
-      <td><span class="status-dot ${dotFlipped}"></span>${escHtml(statusText)}</td>
+      <td>${escHtml(modeText)}</td>
+      <td id="rb-count-${escHtml(r.id)}">${r.query_count}</td>
+      <td id="rb-status-${escHtml(r.id)}">${rebindStatusHtml(r)}</td>
       <td style="display:flex;gap:6px">
         <button class="btn secondary small" onclick="resetRebind('${escHtml(r.id)}')">Reset</button>
         <button class="btn danger small" onclick="deleteRebind('${escHtml(r.id)}')">Delete</button>
@@ -278,9 +344,10 @@ async function createRebind() {
   const firstIP   = document.getElementById('rb-first-ip').value.trim();
   const secondIP  = document.getElementById('rb-second-ip').value.trim();
   const threshold = parseInt(document.getElementById('rb-threshold').value, 10) || 1;
+  const flipFlop  = document.getElementById('rb-flip-flop').checked;
   if (!firstIP || !secondIP) { showAlert('rebind-alert', 'Both IPs are required', 'error'); return; }
   try {
-    await api('/api/rebind', 'POST', { label, first_ip: firstIP, second_ip: secondIP, threshold });
+    await api('/api/rebind', 'POST', { label, first_ip: firstIP, second_ip: secondIP, threshold, flip_flop: flipFlop });
     document.getElementById('rb-label').value = '';
     showAlert('rebind-alert', 'Rebind rule created', 'success');
     loadRebind();
@@ -353,17 +420,7 @@ function renderConfig(c) {
       <div class="config-row"><span class="config-label">Public IP</span><span class="config-value">${escHtml(c.public_ip || 'unknown')}</span></div>
       <div class="config-row"><span class="config-label">Rebind Domain</span><span class="config-value">${escHtml(c.domain)}</span></div>
     </div>
-    <div class="config-section">
-      <h3>DNS Rebinding Setup</h3>
-      <p style="color:#94a3b8;font-size:13px;margin-bottom:8px">
-        For rebinding to work in a real browser, this server must be the authoritative nameserver for <code style="color:#f97316">${escHtml(c.domain)}</code>.
-        Set an NS record at your registrar pointing to this machine's IP.
-      </p>
-      <p style="color:#94a3b8;font-size:12px;margin-bottom:4px">macOS — redirect port 53 → ${c.dns_port} without root:</p>
-      <div class="cmd-block">${escHtml(c.pf_cmd)}</div>
-      <p style="color:#94a3b8;font-size:12px;margin-bottom:4px;margin-top:12px">Linux — redirect port 53 → ${c.dns_port} without root:</p>
-      <div class="cmd-block">${escHtml(c.iptables_cmd)}</div>
-    </div>`;
+  `;
 }
 
 // --- Utilities ---
@@ -378,15 +435,20 @@ function copyText(btn, text) {
 
 // --- Admin sub-navigation ---
 
-function showAdminPane(name, btn) {
+function showAdminPane(name, btn, pushHistory = true) {
   document.querySelectorAll('.admin-pane').forEach(el => el.style.display = 'none');
   document.querySelectorAll('.admin-sidebar-item').forEach(el => el.classList.remove('active'));
   document.getElementById('admin-pane-' + name).style.display = '';
   if (btn) btn.classList.add('active');
+  if (pushHistory) history.pushState({ tab: 'admin', pane: name }, '', ADMIN_PATHS[name] || '/admin');
   if (name === 'redirects') { adminPage = 1; adminRbPage = 1; loadAdminRules(); loadAdminRebind(); }
   if (name === 'users')     loadAdminUsers();
   if (name === 'logs')      loadAdminHits();
   if (name === 'config')    loadConfig();
+}
+
+function adminPaneBtnFor(name) {
+  return document.querySelector(`.admin-sidebar-item[onclick*="'${name}'"]`);
 }
 
 // --- Admin ---
@@ -516,7 +578,8 @@ function renderAdminRebind(data) {
       <th>Hostname</th>
       <th>First IP</th>
       <th>Second IP</th>
-      <th>Threshold</th>
+      <th>N</th>
+      <th>Mode</th>
       <th>Queries</th>
       <th>Status</th>
       <th>Owner</th>
@@ -524,17 +587,17 @@ function renderAdminRebind(data) {
     </tr></thead><tbody>`;
   rules.forEach(r => {
     const slug = r.label || r.id;
-    const dotClass = r.flipped ? 'flipped' : 'waiting';
-    const statusText = r.flipped ? 'Flipped' : `Waiting (${r.query_count}/${r.threshold})`;
+    const modeText = r.flip_flop ? 'flip‑flop' : 'latch';
     html += `<tr>
       <td><input type="checkbox" class="admin-rb-cb" value="${escHtml(r.id)}" onchange="adminRbUpdateDeleteBtn()"></td>
       <td class="mono">${escHtml(slug)}</td>
-      <td class="mono" style="font-size:11px">${escHtml(r.hostname)}</td>
+      <td class="mono" style="font-size:11px;white-space:nowrap">${escHtml(r.hostname)}</td>
       <td class="mono">${escHtml(r.first_ip)}</td>
       <td class="mono">${escHtml(r.second_ip)}</td>
       <td>${r.threshold}</td>
+      <td>${escHtml(modeText)}</td>
       <td>${r.query_count}</td>
-      <td><span class="status-dot ${dotClass}"></span>${escHtml(statusText)}</td>
+      <td>${rebindStatusHtml(r)}</td>
       <td style="font-size:12px;color:#94a3b8">${escHtml(r.owner_email || '—')}</td>
       <td><button class="btn danger small" onclick="adminDeleteRebind('${escHtml(r.id)}')">Delete</button></td>
     </tr>`;

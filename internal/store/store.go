@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS rebind_rules (
 	first_ip    TEXT NOT NULL,
 	second_ip   TEXT NOT NULL,
 	threshold   INTEGER NOT NULL DEFAULT 1,
+	flip_flop   INTEGER NOT NULL DEFAULT 0,
 	user_id     TEXT NOT NULL DEFAULT ''
 );
 
@@ -72,6 +73,8 @@ func Open(path string) (*Store, error) {
 	if _, err := db.Exec(schema); err != nil {
 		return nil, fmt.Errorf("apply schema: %w", err)
 	}
+	// Migration: add flip_flop column to existing databases (ignore error if already present)
+	db.Exec(`ALTER TABLE rebind_rules ADD COLUMN flip_flop INTEGER NOT NULL DEFAULT 0`)
 	return &Store{db: db}, nil
 }
 
@@ -283,16 +286,16 @@ func (s *Store) CreateRebindRule(r *RebindRule) error {
 		r.Threshold = 1
 	}
 	_, err := s.db.Exec(
-		`INSERT INTO rebind_rules (id, label, hostname, first_ip, second_ip, threshold, user_id)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		r.ID, nullableString(r.Label), r.Hostname, r.FirstIP, r.SecondIP, r.Threshold, r.UserID,
+		`INSERT INTO rebind_rules (id, label, hostname, first_ip, second_ip, threshold, flip_flop, user_id)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		r.ID, nullableString(r.Label), r.Hostname, r.FirstIP, r.SecondIP, r.Threshold, r.FlipFlop, r.UserID,
 	)
 	return err
 }
 
 func (s *Store) ListRebindRules(userID string) ([]*RebindRule, error) {
 	rows, err := s.db.Query(
-		`SELECT id, COALESCE(label,''), hostname, first_ip, second_ip, threshold, user_id
+		`SELECT id, COALESCE(label,''), hostname, first_ip, second_ip, threshold, flip_flop, user_id
 		 FROM rebind_rules WHERE user_id=?`,
 		userID,
 	)
@@ -303,7 +306,7 @@ func (s *Store) ListRebindRules(userID string) ([]*RebindRule, error) {
 	var rules []*RebindRule
 	for rows.Next() {
 		r := &RebindRule{}
-		if err := rows.Scan(&r.ID, &r.Label, &r.Hostname, &r.FirstIP, &r.SecondIP, &r.Threshold, &r.UserID); err != nil {
+		if err := rows.Scan(&r.ID, &r.Label, &r.Hostname, &r.FirstIP, &r.SecondIP, &r.Threshold, &r.FlipFlop, &r.UserID); err != nil {
 			return nil, err
 		}
 		rules = append(rules, r)
@@ -314,9 +317,9 @@ func (s *Store) ListRebindRules(userID string) ([]*RebindRule, error) {
 func (s *Store) GetRebindRule(id string) (*RebindRule, error) {
 	r := &RebindRule{}
 	err := s.db.QueryRow(
-		`SELECT id, COALESCE(label,''), hostname, first_ip, second_ip, threshold, user_id
+		`SELECT id, COALESCE(label,''), hostname, first_ip, second_ip, threshold, flip_flop, user_id
 		 FROM rebind_rules WHERE id=?`, id,
-	).Scan(&r.ID, &r.Label, &r.Hostname, &r.FirstIP, &r.SecondIP, &r.Threshold, &r.UserID)
+	).Scan(&r.ID, &r.Label, &r.Hostname, &r.FirstIP, &r.SecondIP, &r.Threshold, &r.FlipFlop, &r.UserID)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -357,7 +360,7 @@ func (s *Store) ListAllRebindRules(page, perPage int) ([]*AdminRebindRule, int, 
 	}
 
 	rows, err := s.db.Query(
-		`SELECT r.id, COALESCE(r.label,''), r.hostname, r.first_ip, r.second_ip, r.threshold, r.user_id,
+		`SELECT r.id, COALESCE(r.label,''), r.hostname, r.first_ip, r.second_ip, r.threshold, r.flip_flop, r.user_id,
 		        COALESCE(u.email,'')
 		 FROM rebind_rules r LEFT JOIN users u ON r.user_id = u.id
 		 ORDER BY r.id DESC
@@ -374,15 +377,27 @@ func (s *Store) ListAllRebindRules(page, perPage int) ([]*AdminRebindRule, int, 
 		ar := &AdminRebindRule{}
 		if err := rows.Scan(
 			&ar.ID, &ar.Label, &ar.Hostname, &ar.FirstIP, &ar.SecondIP,
-			&ar.Threshold, &ar.UserID, &ar.OwnerEmail,
+			&ar.Threshold, &ar.FlipFlop, &ar.UserID, &ar.OwnerEmail,
 		); err != nil {
 			return nil, 0, err
 		}
 		ar.QueryCount = s.GetQueryCount(ar.ID)
-		ar.Flipped = ar.QueryCount > int64(ar.Threshold)
+		ar.Flipped = IsFlipped(ar.QueryCount, int64(ar.Threshold), ar.FlipFlop)
 		rules = append(rules, ar)
 	}
 	return rules, total, rows.Err()
+}
+
+// isFlipped returns whether the current query count should resolve to the second IP.
+// In flip_flop mode the result alternates every threshold queries; otherwise it latches after threshold.
+func IsFlipped(count, threshold int64, flipFlop bool) bool {
+	if threshold <= 0 {
+		threshold = 1
+	}
+	if flipFlop {
+		return ((count-1)/threshold)%2 == 1
+	}
+	return count > threshold
 }
 
 // --- DNS rebind query counters (in-memory, intentionally reset on restart) ---

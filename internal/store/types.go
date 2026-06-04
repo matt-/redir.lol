@@ -31,6 +31,7 @@ type RebindRule struct {
 	FirstIP   string `json:"first_ip"`
 	SecondIP  string `json:"second_ip"`
 	Threshold int    `json:"threshold"`
+	FlipFlop  bool   `json:"flip_flop"`
 	UserID    string `json:"user_id"`
 }
 

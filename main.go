@@ -97,12 +97,10 @@ func main() {
 	sub, _ := fs.Sub(uiFS, "ui")
 	mux.Handle("/ui/", http.StripPrefix("/ui/", http.FileServer(http.FS(sub))))
 
+	indexHTML, _ := fs.ReadFile(uiFS, "ui/index.html")
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.NotFound(w, r)
-			return
-		}
-		http.Redirect(w, r, "/ui/index.html", http.StatusFound)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write(indexHTML)
 	})
 
 	rh := redirect.New(s)

@@ -8,7 +8,7 @@ import (
 	"github.com/mattaustin/redir/internal/store"
 )
 
-// resolveRebind handles an A query for a rebind-{id}.{domain} hostname.
+// resolveRebind handles an A query for a {id}.{domain} hostname.
 // Returns true if it handled the query (appended to m.Answer).
 func resolveRebind(s *store.Store, baseDomain, qname string, m *dns.Msg) bool {
 	// strip trailing dot and domain suffix
@@ -19,12 +19,7 @@ func resolveRebind(s *store.Store, baseDomain, qname string, m *dns.Msg) bool {
 		return false
 	}
 
-	sub := strings.TrimSuffix(name, suffix)
-	if !strings.HasPrefix(sub, "rebind-") {
-		return false
-	}
-
-	id := strings.TrimPrefix(sub, "rebind-")
+	id := strings.TrimSuffix(name, suffix)
 	rule, err := s.GetRebindRule(id)
 	if err != nil || rule == nil {
 		return false
@@ -32,7 +27,7 @@ func resolveRebind(s *store.Store, baseDomain, qname string, m *dns.Msg) bool {
 
 	count := s.IncrementQueryCount(id)
 	ip := rule.FirstIP
-	if count > int64(rule.Threshold) {
+	if store.IsFlipped(count, int64(rule.Threshold), rule.FlipFlop) {
 		ip = rule.SecondIP
 	}
 
