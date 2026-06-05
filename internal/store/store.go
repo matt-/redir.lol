@@ -314,11 +314,11 @@ func (s *Store) ListRebindRules(userID string) ([]*RebindRule, error) {
 	return rules, rows.Err()
 }
 
-func (s *Store) GetRebindRule(id string) (*RebindRule, error) {
+func (s *Store) GetRebindRule(idOrLabel string) (*RebindRule, error) {
 	r := &RebindRule{}
 	err := s.db.QueryRow(
 		`SELECT id, COALESCE(label,''), hostname, first_ip, second_ip, threshold, flip_flop, user_id
-		 FROM rebind_rules WHERE id=?`, id,
+		 FROM rebind_rules WHERE id=? OR label=? LIMIT 1`, idOrLabel, idOrLabel,
 	).Scan(&r.ID, &r.Label, &r.Hostname, &r.FirstIP, &r.SecondIP, &r.Threshold, &r.FlipFlop, &r.UserID)
 	if err == sql.ErrNoRows {
 		return nil, nil

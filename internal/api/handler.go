@@ -205,7 +205,11 @@ func (h *Handler) rebind(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if rr.Hostname == "" {
-			rr.Hostname = rr.ID + "." + h.config.Domain
+			slug := rr.ID
+			if rr.Label != "" {
+				slug = rr.Label
+			}
+			rr.Hostname = slug + "." + h.config.Domain
 			h.store.UpdateRebindHostname(rr.ID, rr.Hostname)
 		}
 		w.WriteHeader(http.StatusCreated)
