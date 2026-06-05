@@ -74,8 +74,11 @@
         <h3>New Redirect Rule</h3>
         <div class="form-row">
           <div class="form-group">
-            <label>Label <button type="button" class="copy-btn" onclick="refreshLabel()" style="margin-left:4px">↺</button></label>
-            <input id="rule-label" type="text" placeholder="aws-ssrf" autocomplete="off">
+            <label>Label</label>
+            <div style="display:flex;gap:6px">
+              <input id="rule-label" type="text" placeholder="aws-ssrf" autocomplete="off" style="flex:1;min-width:0">
+              <button type="button" class="btn secondary small" onclick="refreshLabel()" title="Generate new label">↺</button>
+            </div>
           </div>
           <div class="form-group">
             <label>Type</label>
