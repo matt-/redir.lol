@@ -1,6 +1,7 @@
 port: 9999
 dns_port: 5300
 domain: redir.yourdomain.com
+proxy_domain: proxy.yourdomain.com
 db: ~/.redir/redir.db
 public_ip: 1.2.3.4
 bind: 0.0.0.0

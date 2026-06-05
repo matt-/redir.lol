@@ -11,6 +11,7 @@ type AppConfig struct {
 	Port        int      `yaml:"port"`
 	DNSPort     int      `yaml:"dns_port"`
 	Domain      string   `yaml:"domain"`
+	ProxyDomain string   `yaml:"proxy_domain"`
 	DB          string   `yaml:"db"`
 	PublicIP    string   `yaml:"public_ip"`
 	Bind        string   `yaml:"bind"`

@@ -13,10 +13,12 @@ type Config struct {
 	HTTPPort    int    `json:"http_port"`
 	DNSPort     int    `json:"dns_port"`
 	Domain      string `json:"domain"`
+	ProxyDomain string `json:"proxy_domain"`
 	PublicIP    string `json:"public_ip"`
 	BindAddr    string `json:"bind_addr"`
 	IptablesCmd string `json:"iptables_cmd"`
 	PfCmd       string `json:"pf_cmd"`
+	BuildCommit string `json:"build_commit"`
 }
 
 type Preset struct {
@@ -56,6 +58,7 @@ func (h *Handler) Register(mux *http.ServeMux, protect func(http.Handler) http.H
 	mux.Handle("/api/rebind/", protect(http.HandlerFunc(h.rebindByID)))
 	mux.Handle("/api/hits", protect(http.HandlerFunc(h.getHits)))
 	mux.Handle("/api/presets", protect(http.HandlerFunc(h.getPresets)))
+	mux.Handle("/api/info", protect(http.HandlerFunc(h.getInfo)))
 
 	admin := requireAdmin(h.adminEmails, h.store)
 	mux.Handle("/api/config", protect(admin(http.HandlerFunc(h.getConfig))))
@@ -256,6 +259,18 @@ func (h *Handler) getPresets(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) getConfig(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, h.config)
+}
+
+func (h *Handler) getInfo(w http.ResponseWriter, r *http.Request) {
+	jsonOK(w, struct {
+		ProxyDomain string `json:"proxy_domain"`
+		PublicIP    string `json:"public_ip"`
+		BuildCommit string `json:"build_commit"`
+	}{
+		ProxyDomain: h.config.ProxyDomain,
+		PublicIP:    h.config.PublicIP,
+		BuildCommit: h.config.BuildCommit,
+	})
 }
 
 func (h *Handler) getHits(w http.ResponseWriter, r *http.Request) {

@@ -1,6 +1,7 @@
 .PHONY: build build-linux run run-root pf-redirect iptables-redirect clean
 
-LDFLAGS := -ldflags="-s -w"
+COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
+LDFLAGS := -ldflags="-s -w -X main.buildCommit=$(COMMIT)"
 
 build:
 	go build $(LDFLAGS) -o redir .

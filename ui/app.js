@@ -68,6 +68,7 @@ function showApp(me) {
   document.getElementById('app-header').style.display = '';
   document.getElementById('main-nav').style.display = '';
   document.getElementById('main-content').style.display = '';
+  document.getElementById('app-footer').style.display = '';
 
   const ui = document.getElementById('user-info');
   ui.innerHTML = `<span>${escHtml(me.email)}</span>
@@ -136,7 +137,7 @@ async function init() {
 
 async function initApp(me) {
   try {
-    const [p, c] = await Promise.all([api('/api/presets'), api('/api/config')]);
+    const [p, c] = await Promise.all([api('/api/presets'), api('/api/info')]);
     presets = p;
     cfg = c;
     const dl = document.getElementById('presets-list');
@@ -149,6 +150,9 @@ async function initApp(me) {
     });
     if (cfg.public_ip) {
       document.getElementById('rb-first-ip').value = cfg.public_ip;
+    }
+    if (cfg.build_commit) {
+      document.getElementById('app-footer').textContent = cfg.build_commit;
     }
   } catch(e) { console.error('initApp', e); }
 
@@ -220,6 +224,7 @@ function renderRules(rules) {
     return;
   }
   const baseURL = location.origin;
+  const proxyBase = cfg.proxy_domain ? location.protocol + '//' + cfg.proxy_domain : baseURL;
   let html = `<table>
     <thead><tr>
       <th>Label / ID</th>
@@ -231,7 +236,8 @@ function renderRules(rules) {
     </tr></thead><tbody>`;
   rules.forEach(r => {
     const slug = r.label || r.id;
-    const redirectURL = baseURL + '/r/' + encodeURIComponent(slug);
+    const origin = r.type === 'proxy' && cfg.proxy_domain ? proxyBase : baseURL;
+    const redirectURL = origin + '/r/' + encodeURIComponent(slug);
     const typeBadge = typeLabel(r);
     const hitClass = r.hit_count > 0 ? 'has-hits' : '';
     html += `<tr>

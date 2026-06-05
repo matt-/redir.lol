@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/mattaustin/redir/internal/proxy"
 	"github.com/mattaustin/redir/internal/store"
 )
 
@@ -23,11 +24,12 @@ const jsTemplate = `<!DOCTYPE html>
 </body></html>`
 
 type Handler struct {
-	store *store.Store
+	store       *store.Store
+	proxyDomain string // if set, proxy rules redirect to this domain instead of serving inline
 }
 
-func New(s *store.Store) *Handler {
-	return &Handler{store: s}
+func New(s *store.Store, proxyDomain string) *Handler {
+	return &Handler{store: s, proxyDomain: proxyDomain}
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -74,10 +76,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, jsTemplate, target, target)
 
 	case store.RedirectProxy:
-		// delegate to proxy — registered separately
+		if h.proxyDomain != "" {
+			scheme := "https"
+			if r.TLS == nil {
+				scheme = "http"
+			}
+			http.Redirect(w, r, scheme+"://"+h.proxyDomain+"/r/"+key, http.StatusFound)
+			return
+		}
+		// no proxy domain configured — serve inline (XSS risk, local/dev only)
 		r2 := r.WithContext(r.Context())
 		r2.Header.Set("X-Redir-Target", target)
-		http.DefaultServeMux.ServeHTTP(w, r2)
+		proxy.Handler(w, r2)
 
 	default:
 		http.Redirect(w, r, target, http.StatusFound)

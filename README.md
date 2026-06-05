@@ -42,6 +42,7 @@ On first run `~/.redir/config.yaml` is created automatically with defaults. Edit
 | `port` | `9999` | HTTP port for the web UI, API, and redirect engine |
 | `dns_port` | `5300` | UDP port for the DNS server |
 | `domain` | `redir.local` | Base domain for DNS rebind hostnames |
+| `proxy_domain` | *(empty)* | Domain to serve proxy responses from (e.g. `proxy.yourdomain.com`). When set, proxy rules redirect the browser to this domain so proxied content is isolated from the main app origin. If unset, proxy responses are served inline (fine for local use, XSS risk in production). |
 | `db` | `~/.redir/redir.db` | Path to the SQLite database |
 | `public_ip` | *(auto-detected)* | Public IP advertised as the rebind first-hop. Auto-detected from outbound interface if empty |
 | `bind` | `0.0.0.0` | Network interface to bind on |
@@ -82,6 +83,19 @@ sudo ./redir -dns-port 53
 ```
 
 For rebinding to work in a real browser, `domain` must be a domain you control with NS records pointing to this machine. `redir.local` works for local testing with `/etc/hosts` overrides or mDNS.
+
+### DNS records
+
+For a setup with `domain: rebind.yourdomain.com` and `proxy_domain: proxy.yourdomain.com`:
+
+| Type | Name | Value | Purpose |
+|---|---|---|---|
+| `A` | `yourdomain.com` | server IP | Main app |
+| `A` | `ns1.yourdomain.com` | server IP | Glue record for NS delegation |
+| `NS` | `rebind.yourdomain.com` | `ns1.yourdomain.com` | Delegates rebind subdomain to this server |
+| `A` | `proxy.yourdomain.com` | server IP | Isolated proxy origin |
+
+The `NS` + glue `A` pair is what allows the built-in DNS server to answer queries for `*.rebind.yourdomain.com` with TTL=1 for rebinding. The `proxy.yourdomain.com` record isolates proxied content from the main app origin to prevent XSS from affecting your session.
 
 ## Admin
 

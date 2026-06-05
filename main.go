@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -25,6 +26,8 @@ import (
 
 //go:embed ui
 var uiFS embed.FS
+
+var buildCommit = "dev"
 
 func main() {
 	// Flags mirror config file fields so CLI can override any setting.
@@ -86,10 +89,12 @@ func main() {
 		HTTPPort:    cfg.Port,
 		DNSPort:     cfg.DNSPort,
 		Domain:      cfg.Domain,
+		ProxyDomain: cfg.ProxyDomain,
 		PublicIP:    cfg.PublicIP,
 		BindAddr:    cfg.Bind,
 		IptablesCmd: iptablesCmd,
 		PfCmd:       pfCmd,
+		BuildCommit: buildCommit,
 	}
 
 	mux := http.NewServeMux()
@@ -103,10 +108,8 @@ func main() {
 		w.Write(indexHTML)
 	})
 
-	rh := redirect.New(s)
+	rh := redirect.New(s, cfg.ProxyDomain)
 	mux.Handle("/r/", rh)
-
-	mux.HandleFunc("/proxy", proxy.Handler)
 
 	protect := auth.Middleware(s)
 	mux.HandleFunc("/api/auth/register", auth.RegisterHandler(s))
@@ -117,9 +120,39 @@ func main() {
 	apiHandler := api.New(s, apiCfg, cfg.AdminEmails)
 	apiHandler.Register(mux, protect)
 
+	// Virtual host router: proxy subdomain gets its own isolated handler.
+	var rootHandler http.Handler = mux
+	if cfg.ProxyDomain != "" {
+		rootHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			host := r.Host
+			if i := strings.LastIndex(host, ":"); i >= 0 {
+				host = host[:i]
+			}
+			if host == cfg.ProxyDomain {
+				slug := strings.TrimPrefix(r.URL.Path, "/r/")
+				slug = strings.TrimPrefix(slug, "/")
+				slug = strings.TrimSuffix(slug, "/")
+				if slug == "" {
+					http.NotFound(w, r)
+					return
+				}
+				rule, err := s.GetRule(slug)
+				if err != nil || rule == nil {
+					http.NotFound(w, r)
+					return
+				}
+				r2 := r.WithContext(r.Context())
+				r2.Header.Set("X-Redir-Target", rule.TargetURL)
+				proxy.Handler(w, r2)
+				return
+			}
+			mux.ServeHTTP(w, r)
+		})
+	}
+
 	httpSrv := &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", cfg.Bind, cfg.Port),
-		Handler:      mux,
+		Handler:      rootHandler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}
@@ -130,6 +163,19 @@ func main() {
 	defer stop()
 
 	printBanner(cfg.Port, cfg.DNSPort, cfg.Domain, cfg.PublicIP, pfCmd, iptablesCmd)
+
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				s.DeleteExpiredSessions()
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 
 	go func() {
 		log.Printf("[dns] listening on UDP %s:%d", cfg.Bind, cfg.DNSPort)
