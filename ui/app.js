@@ -157,6 +157,7 @@ async function initApp(me) {
   } catch(e) { console.error('initApp', e); }
 
   refreshLabel();
+  refreshRbLabel();
 
   routeFromPath(location.pathname, false);
 
@@ -264,11 +265,15 @@ function typeLabel(r) {
 }
 
 function randomLabel() {
-  return Math.random().toString(36).slice(2, 8);
+  return Math.random().toString(36).slice(2, 7) + Math.random().toString(36).slice(2, 7);
 }
 
 function refreshLabel() {
   document.getElementById('rule-label').value = randomLabel();
+}
+
+function refreshRbLabel() {
+  document.getElementById('rb-label').value = randomLabel();
 }
 
 async function createRule() {
@@ -364,7 +369,7 @@ async function createRebind() {
   if (!firstIP || !secondIP) { showAlert('rebind-alert', 'Both IPs are required', 'error'); return; }
   try {
     await api('/api/rebind', 'POST', { label, first_ip: firstIP, second_ip: secondIP, threshold, flip_flop: flipFlop });
-    document.getElementById('rb-label').value = '';
+    refreshRbLabel();
     showAlert('rebind-alert', 'Rebind rule created', 'success');
     loadRebind();
   } catch(e) { showAlert('rebind-alert', e.message, 'error'); }
