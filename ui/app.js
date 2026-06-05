@@ -410,7 +410,7 @@ function renderHits(hits) {
 async function loadConfig() {
   try {
     const c = await api('/api/config');
-    cfg = c;
+    cfg = { ...cfg, ...c };
     renderConfig(c);
   } catch(e) {}
 }
