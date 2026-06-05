@@ -25,7 +25,7 @@ func resolveRebind(s *store.Store, baseDomain, qname string, m *dns.Msg) bool {
 		return false
 	}
 
-	count := s.IncrementQueryCount(id)
+	count := s.IncrementQueryCount(rule.ID)
 	ip := rule.FirstIP
 	if store.IsFlipped(count, int64(rule.Threshold), rule.FlipFlop) {
 		ip = rule.SecondIP
