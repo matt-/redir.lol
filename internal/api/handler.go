@@ -101,7 +101,11 @@ func (h *Handler) rules(w http.ResponseWriter, r *http.Request) {
 		}
 		rule.UserID = userID
 		if err := h.store.CreateRule(&rule); err != nil {
-			jsonError(w, err.Error(), 500)
+			if strings.Contains(err.Error(), "UNIQUE constraint failed: rules.label") {
+				jsonError(w, "label already taken", 409)
+			} else {
+				jsonError(w, err.Error(), 500)
+			}
 			return
 		}
 		w.WriteHeader(http.StatusCreated)

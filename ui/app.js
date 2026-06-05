@@ -156,6 +156,8 @@ async function initApp(me) {
     }
   } catch(e) { console.error('initApp', e); }
 
+  refreshLabel();
+
   routeFromPath(location.pathname, false);
 
   window.addEventListener('popstate', () => routeFromPath(location.pathname, false));
@@ -261,6 +263,14 @@ function typeLabel(r) {
   return escHtml(r.type);
 }
 
+function randomLabel() {
+  return Math.random().toString(36).slice(2, 8);
+}
+
+function refreshLabel() {
+  document.getElementById('rule-label').value = randomLabel();
+}
+
 async function createRule() {
   const label = document.getElementById('rule-label').value.trim();
   const type  = document.getElementById('rule-type').value;
@@ -269,7 +279,7 @@ async function createRule() {
   if (!target) { showAlert('rule-alert', 'Target URL is required', 'error'); return; }
   try {
     await api('/api/rules', 'POST', { label, type, status_code: code, target_url: target });
-    document.getElementById('rule-label').value = '';
+    refreshLabel();
     document.getElementById('rule-target').value = '';
     showAlert('rule-alert', 'Rule created', 'success');
     loadRules();
