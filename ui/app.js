@@ -14,6 +14,7 @@ const TAB_PATHS   = { redirects: '/', rebind: '/rebind', hits: '/hits', admin: '
 const ADMIN_PATHS = { redirects: '/admin', users: '/admin/users', logs: '/admin/logs', config: '/admin/config' };
 
 let rebindPollInterval = null;
+let hitsPollInterval = null;
 
 function showTab(name, btn, pushHistory = true) {
   document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
@@ -23,9 +24,10 @@ function showTab(name, btn, pushHistory = true) {
   if (pushHistory) history.pushState({ tab: name }, '', TAB_PATHS[name] || '/');
   if (name === 'redirects') loadRules();
   if (name === 'rebind') { loadRebind(); startRebindPoll(); }
-  if (name === 'hits') loadHits();
+  if (name === 'hits') { loadHits(); loadRebindEvents(); startHitsPoll(); }
   if (name === 'admin') { showAdminPane('redirects', document.querySelector('.admin-sidebar-item'), false); }
   if (name !== 'rebind') stopRebindPoll();
+  if (name !== 'hits') stopHitsPoll();
 }
 
 function startRebindPoll() {
@@ -35,6 +37,15 @@ function startRebindPoll() {
 
 function stopRebindPoll() {
   if (rebindPollInterval) { clearInterval(rebindPollInterval); rebindPollInterval = null; }
+}
+
+function startHitsPoll() {
+  stopHitsPoll();
+  hitsPollInterval = setInterval(loadRebindEvents, 2000);
+}
+
+function stopHitsPoll() {
+  if (hitsPollInterval) { clearInterval(hitsPollInterval); hitsPollInterval = null; }
 }
 
 async function pollRebindCounts() {
@@ -47,6 +58,36 @@ async function pollRebindCounts() {
     countEl.textContent = r.query_count;
     statusEl.innerHTML  = rebindStatusHtml(r);
   });
+}
+
+async function loadRebindEvents() {
+  let events;
+  try { events = await api('/api/rebind-events'); } catch(e) { return; }
+  renderRebindEvents(events);
+}
+
+function renderRebindEvents(events) {
+  const cont = document.getElementById('rebind-events-container');
+  if (!events || events.length === 0) {
+    cont.innerHTML = '<div class="empty-state"><p>No DNS queries logged yet.</p></div>';
+    return;
+  }
+  let html = `<table class="hits-table">
+    <thead><tr><th>Time</th><th>Label / ID</th><th>Remote</th><th>Query #</th><th>Flipped</th><th>Resolved IP</th></tr></thead><tbody>`;
+  events.forEach(e => {
+    const ts = new Date(e.timestamp).toLocaleTimeString();
+    const dot = e.flipped ? 'flipped' : 'waiting';
+    html += `<tr>
+      <td class="timestamp">${escHtml(ts)}</td>
+      <td class="mono">${escHtml(e.label || e.rule_id)}</td>
+      <td class="mono">${escHtml(e.remote_addr || '')}</td>
+      <td>${e.query_count}${e.flip_flop ? '' : '/' + e.threshold}</td>
+      <td><span class="status-dot ${dot}"></span>${e.flipped ? 'yes' : 'no'}</td>
+      <td class="mono">${escHtml(e.ip)}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  cont.innerHTML = html;
 }
 
 function tabBtnFor(name) {

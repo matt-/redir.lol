@@ -62,7 +62,16 @@ CREATE TABLE IF NOT EXISTS hits (
 type Store struct {
 	db          *sql.DB
 	queryCounts sync.Map // rebind ID -> *atomic.Int64
+
+	rebindMu      sync.RWMutex
+	rebindByID    map[string]*RebindRule
+	rebindByLabel map[string]*RebindRule
+
+	rebindEventsMu sync.Mutex
+	rebindEvents   []RebindEvent // ring buffer, most recent last
 }
+
+const maxRebindEvents = 200
 
 func Open(path string) (*Store, error) {
 	db, err := sql.Open("sqlite", path)
@@ -75,7 +84,72 @@ func Open(path string) (*Store, error) {
 	}
 	// Migration: add flip_flop column to existing databases (ignore error if already present)
 	db.Exec(`ALTER TABLE rebind_rules ADD COLUMN flip_flop INTEGER NOT NULL DEFAULT 0`)
-	return &Store{db: db}, nil
+
+	s := &Store{
+		db:            db,
+		rebindByID:    make(map[string]*RebindRule),
+		rebindByLabel: make(map[string]*RebindRule),
+	}
+	if err := s.loadRebindCache(); err != nil {
+		return nil, fmt.Errorf("load rebind cache: %w", err)
+	}
+	return s, nil
+}
+
+// loadRebindCache populates the in-memory rebind rule cache from disk.
+// resolveRebind (the DNS hot path) reads only from this cache, never SQLite,
+// since TTL=1 rebind records mean the resolver is re-queried on every request.
+func (s *Store) loadRebindCache() error {
+	rows, err := s.db.Query(
+		`SELECT id, COALESCE(label,''), hostname, first_ip, second_ip, threshold, flip_flop, user_id FROM rebind_rules`,
+	)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	byID := make(map[string]*RebindRule)
+	byLabel := make(map[string]*RebindRule)
+	for rows.Next() {
+		r := &RebindRule{}
+		if err := rows.Scan(&r.ID, &r.Label, &r.Hostname, &r.FirstIP, &r.SecondIP, &r.Threshold, &r.FlipFlop, &r.UserID); err != nil {
+			return err
+		}
+		byID[r.ID] = r
+		if r.Label != "" {
+			byLabel[r.Label] = r
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	s.rebindMu.Lock()
+	s.rebindByID = byID
+	s.rebindByLabel = byLabel
+	s.rebindMu.Unlock()
+	return nil
+}
+
+// cacheRebindRule stores a copy of r in the in-memory cache, keyed by ID and label.
+func (s *Store) cacheRebindRule(r *RebindRule) {
+	cp := *r
+	s.rebindMu.Lock()
+	defer s.rebindMu.Unlock()
+	s.rebindByID[cp.ID] = &cp
+	if cp.Label != "" {
+		s.rebindByLabel[cp.Label] = &cp
+	}
+}
+
+// uncacheRebindRule removes id (and its label, if known) from the in-memory cache.
+func (s *Store) uncacheRebindRule(id string) {
+	s.rebindMu.Lock()
+	defer s.rebindMu.Unlock()
+	if r, ok := s.rebindByID[id]; ok {
+		delete(s.rebindByLabel, r.Label)
+	}
+	delete(s.rebindByID, id)
 }
 
 func (s *Store) Close() error {
@@ -290,7 +364,11 @@ func (s *Store) CreateRebindRule(r *RebindRule) error {
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		r.ID, nullableString(r.Label), r.Hostname, r.FirstIP, r.SecondIP, r.Threshold, r.FlipFlop, r.UserID,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	s.cacheRebindRule(r)
+	return nil
 }
 
 func (s *Store) ListRebindRules(userID string) ([]*RebindRule, error) {
@@ -314,25 +392,42 @@ func (s *Store) ListRebindRules(userID string) ([]*RebindRule, error) {
 	return rules, rows.Err()
 }
 
+// GetRebindRule looks up a rule by ID or label from the in-memory cache.
+// This is the DNS hot path (called on every rebind A query, which uses TTL=1
+// so it fires repeatedly) — it must never hit SQLite.
 func (s *Store) GetRebindRule(idOrLabel string) (*RebindRule, error) {
-	r := &RebindRule{}
-	err := s.db.QueryRow(
-		`SELECT id, COALESCE(label,''), hostname, first_ip, second_ip, threshold, flip_flop, user_id
-		 FROM rebind_rules WHERE id=? OR label=? LIMIT 1`, idOrLabel, idOrLabel,
-	).Scan(&r.ID, &r.Label, &r.Hostname, &r.FirstIP, &r.SecondIP, &r.Threshold, &r.FlipFlop, &r.UserID)
-	if err == sql.ErrNoRows {
-		return nil, nil
+	s.rebindMu.RLock()
+	defer s.rebindMu.RUnlock()
+	if r, ok := s.rebindByID[idOrLabel]; ok {
+		return r, nil
 	}
-	return r, err
+	if r, ok := s.rebindByLabel[idOrLabel]; ok {
+		return r, nil
+	}
+	return nil, nil
 }
 
 func (s *Store) UpdateRebindHostname(id, hostname string) error {
 	_, err := s.db.Exec(`UPDATE rebind_rules SET hostname=? WHERE id=?`, hostname, id)
-	return err
+	if err != nil {
+		return err
+	}
+	s.rebindMu.Lock()
+	if r, ok := s.rebindByID[id]; ok {
+		cp := *r
+		cp.Hostname = hostname
+		s.rebindByID[id] = &cp
+		if cp.Label != "" {
+			s.rebindByLabel[cp.Label] = &cp
+		}
+	}
+	s.rebindMu.Unlock()
+	return nil
 }
 
 func (s *Store) DeleteRebindRule(id, userID string) error {
 	s.queryCounts.Delete(id)
+	s.uncacheRebindRule(id)
 	_, err := s.db.Exec(`DELETE FROM rebind_rules WHERE id=? AND user_id=?`, id, userID)
 	return err
 }
@@ -340,6 +435,7 @@ func (s *Store) DeleteRebindRule(id, userID string) error {
 // DeleteRebindRuleByID deletes any rebind rule regardless of owner — admin use only.
 func (s *Store) DeleteRebindRuleByID(id string) error {
 	s.queryCounts.Delete(id)
+	s.uncacheRebindRule(id)
 	_, err := s.db.Exec(`DELETE FROM rebind_rules WHERE id=?`, id)
 	return err
 }
@@ -420,6 +516,53 @@ func (s *Store) ResetQueryCount(id string) {
 	if ok {
 		v.(*atomic.Int64).Store(0)
 	}
+}
+
+// RecordRebindEvent appends a DNS resolution event to the in-memory ring
+// buffer. Called on the DNS hot path, so it must stay allocation-light and
+// never touch SQLite.
+func (s *Store) RecordRebindEvent(e RebindEvent) {
+	s.rebindEventsMu.Lock()
+	defer s.rebindEventsMu.Unlock()
+	s.rebindEvents = append(s.rebindEvents, e)
+	if len(s.rebindEvents) > maxRebindEvents {
+		s.rebindEvents = s.rebindEvents[len(s.rebindEvents)-maxRebindEvents:]
+	}
+}
+
+// ListRebindEvents returns the most recent events for rules owned by userID,
+// newest first, capped at limit.
+func (s *Store) ListRebindEvents(userID string, limit int) []RebindEvent {
+	if limit <= 0 || limit > maxRebindEvents {
+		limit = maxRebindEvents
+	}
+	s.rebindEventsMu.Lock()
+	defer s.rebindEventsMu.Unlock()
+	out := make([]RebindEvent, 0, limit)
+	for i := len(s.rebindEvents) - 1; i >= 0 && len(out) < limit; i-- {
+		if s.rebindEvents[i].UserID == userID {
+			out = append(out, s.rebindEvents[i])
+		}
+	}
+	return out
+}
+
+// ListAllRebindEvents returns the most recent events across all users, newest first.
+func (s *Store) ListAllRebindEvents(limit int) []RebindEvent {
+	if limit <= 0 || limit > maxRebindEvents {
+		limit = maxRebindEvents
+	}
+	s.rebindEventsMu.Lock()
+	defer s.rebindEventsMu.Unlock()
+	n := len(s.rebindEvents)
+	if limit > n {
+		limit = n
+	}
+	out := make([]RebindEvent, limit)
+	for i := 0; i < limit; i++ {
+		out[i] = s.rebindEvents[n-1-i]
+	}
+	return out
 }
 
 func nullableString(s string) interface{} {

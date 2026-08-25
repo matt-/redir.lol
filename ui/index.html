@@ -177,10 +177,18 @@
     <div id="tab-hits" class="tab-pane">
       <div class="section-header">
         <h2>Logs</h2>
-        <button class="btn secondary" onclick="loadHits()">Refresh</button>
+        <button class="btn secondary" onclick="loadHits(); loadRebindEvents();">Refresh</button>
       </div>
       <div id="hits-container">
         <div class="empty-state"><p>No hits recorded yet.</p></div>
+      </div>
+
+      <div class="section-header">
+        <h2>Rebind Query Log</h2>
+      </div>
+
+      <div id="rebind-events-container">
+        <div class="empty-state"><p>No DNS queries logged yet.</p></div>
       </div>
     </div>
 

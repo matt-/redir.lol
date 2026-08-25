@@ -103,8 +103,16 @@ func main() {
 	mux.Handle("/ui/", http.StripPrefix("/ui/", http.FileServer(http.FS(sub))))
 
 	indexHTML, _ := fs.ReadFile(uiFS, "ui/index.html")
+	// Bust Cloudflare/browser caching of static assets across deploys: the
+	// query string changes whenever buildCommit changes, so a new deploy is
+	// never served stale JS/CSS from the edge cache.
+	indexHTML = []byte(strings.NewReplacer(
+		`/ui/app.js"`, `/ui/app.js?v=`+buildCommit+`"`,
+		`/ui/style.css"`, `/ui/style.css?v=`+buildCommit+`"`,
+	).Replace(string(indexHTML)))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache")
 		w.Write(indexHTML)
 	})
 

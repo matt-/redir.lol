@@ -25,10 +25,11 @@ func New(s *store.Store, domain string, port int) *Server {
 		m.Authoritative = true
 		m.RecursionAvailable = false
 
+		remoteAddr := w.RemoteAddr().String()
 		for _, q := range r.Question {
 			switch q.Qtype {
 			case dns.TypeA:
-				if !resolveRebind(s, domain, q.Name, m) {
+				if !resolveRebind(s, domain, q.Name, remoteAddr, m) {
 					// NXDOMAIN for unknown subdomains
 					m.Rcode = dns.RcodeNameError
 					appendSOA(domain, m)

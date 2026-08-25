@@ -57,6 +57,7 @@ func (h *Handler) Register(mux *http.ServeMux, protect func(http.Handler) http.H
 	mux.Handle("/api/rebind", protect(http.HandlerFunc(h.rebind)))
 	mux.Handle("/api/rebind/", protect(http.HandlerFunc(h.rebindByID)))
 	mux.Handle("/api/hits", protect(http.HandlerFunc(h.getHits)))
+	mux.Handle("/api/rebind-events", protect(http.HandlerFunc(h.getRebindEvents)))
 	mux.Handle("/api/presets", protect(http.HandlerFunc(h.getPresets)))
 	mux.Handle("/api/info", protect(http.HandlerFunc(h.getInfo)))
 
@@ -292,6 +293,15 @@ func (h *Handler) getHits(w http.ResponseWriter, r *http.Request) {
 		hits = []*store.Hit{}
 	}
 	jsonOK(w, hits)
+}
+
+func (h *Handler) getRebindEvents(w http.ResponseWriter, r *http.Request) {
+	userID := auth.UserIDFromCtx(r)
+	events := h.store.ListRebindEvents(userID, 200)
+	if events == nil {
+		events = []store.RebindEvent{}
+	}
+	jsonOK(w, events)
 }
 
 // --- helpers ---

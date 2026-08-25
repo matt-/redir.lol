@@ -56,6 +56,22 @@ type AdminRebindRule struct {
 	Flipped    bool   `json:"flipped"`
 }
 
+// RebindEvent records a single DNS resolution against a rebind rule.
+// Kept in memory only (not persisted) — the DNS hot path must never touch SQLite.
+type RebindEvent struct {
+	Timestamp  time.Time `json:"timestamp"`
+	RuleID     string    `json:"rule_id"`
+	Label      string    `json:"label"`
+	Hostname   string    `json:"hostname"`
+	RemoteAddr string    `json:"remote_addr"`
+	QueryCount int64     `json:"query_count"`
+	Threshold  int       `json:"threshold"`
+	FlipFlop   bool      `json:"flip_flop"`
+	Flipped    bool      `json:"flipped"`
+	IP         string    `json:"ip"`
+	UserID     string    `json:"-"`
+}
+
 type User struct {
 	ID           string    `json:"id"`
 	Email        string    `json:"email"`
