@@ -447,16 +447,13 @@ function renderRebind(rules) {
   }
   let html = `<table>
     <thead><tr>
-      <th>Label</th>
       <th>Hostname</th>
       <th>Status</th>
       <th>Count</th>
       <th>Actions</th>
     </tr></thead><tbody>`;
   rules.forEach(r => {
-    const slug = r.label || r.id;
     html += `<tr>
-      <td class="mono">${escHtml(slug)}</td>
       <td class="mono" style="font-size:11px;white-space:nowrap">${escHtml(r.hostname)} <button class="copy-btn" onclick="copyText(this,'${escHtml(r.hostname)}')">copy</button></td>
       <td id="rb-status-${escHtml(r.id)}">${rebindStatusHtml(r)}</td>
       <td><a href="#" id="rb-count-${escHtml(r.id)}" onclick="viewRebindLog(event,'${escHtml(r.id)}')">${r.query_count}</a></td>
