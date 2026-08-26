@@ -415,12 +415,11 @@ async function deleteRule(id) {
 const IP_CURRENT_COLOR = '#4ade80'; // green — currently resolved
 const IP_NEXT_COLOR    = '#facc15'; // yellow — will resolve after the next flip
 
-// Arrow sits between the two IPs and points at whichever is currently
-// resolved; the current IP is green, the other is yellow, and both flip when
-// the rule flips. The fraction shows progress toward the next flip (or, in
-// latch mode, toward the one-time flip).
+// Arrow sits between the two IPs and points at whichever will resolve next
+// (the yellow one); the current IP is green. The fraction shows progress
+// toward the next flip (or, in latch mode, toward the one-time flip).
 function rebindStatusHtml(r) {
-  const arrow = r.flipped ? '→' : '←';
+  const arrow = r.flipped ? '←' : '→';
   const threshold = r.threshold || 1;
 
   let frac;
