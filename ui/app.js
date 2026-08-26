@@ -27,7 +27,7 @@ function showTab(name, btn, pushHistory = true) {
   if (name === 'hits') { loadHits(); loadRebindEvents(); startHitsPoll(); }
   if (name === 'admin') { showAdminPane('redirects', document.querySelector('.admin-sidebar-item'), false); }
   if (name !== 'rebind') stopRebindPoll();
-  if (name !== 'hits') stopHitsPoll();
+  if (name !== 'hits') { stopHitsPoll(); rebindLogFilterID = null; }
 }
 
 function startRebindPoll() {
@@ -60,9 +60,33 @@ async function pollRebindCounts() {
   });
 }
 
+let rebindLogFilterID = null;
+
+function viewRebindLog(evt, ruleID) {
+  if (evt) evt.preventDefault();
+  rebindLogFilterID = ruleID;
+  showTab('hits', tabBtnFor('hits'));
+}
+
+function clearRebindLogFilter() {
+  rebindLogFilterID = null;
+  renderRebindLogFilterBanner();
+  loadRebindEvents();
+}
+
+function renderRebindLogFilterBanner() {
+  const el = document.getElementById('rebind-log-filter');
+  if (!el) return;
+  el.innerHTML = rebindLogFilterID
+    ? `Filtered to one rebind rule — <a href="#" onclick="clearRebindLogFilter(); return false;">clear</a>`
+    : '';
+}
+
 async function loadRebindEvents() {
   let events;
   try { events = await api('/api/rebind-events'); } catch(e) { return; }
+  if (rebindLogFilterID) events = events.filter(e => e.rule_id === rebindLogFilterID);
+  renderRebindLogFilterBanner();
   renderRebindEvents(events);
 }
 
@@ -388,16 +412,23 @@ async function deleteRule(id) {
 
 // --- Rebind Rules ---
 
+// Arrow flips direction when the resolved IP flips; the fraction shows
+// progress toward the next flip (or, in latch mode, toward the one-time flip).
 function rebindStatusHtml(r) {
+  const dot   = r.flipped ? 'flipped' : 'waiting';
+  const arrow = r.flipped ? '↑' : '↓';
+  const threshold = r.threshold || 1;
+
+  let frac;
   if (r.flip_flop) {
-    const curr = r.flipped ? r.second_ip : r.first_ip;
-    const next = r.flipped ? r.first_ip  : r.second_ip;
-    const dot  = r.flipped ? 'flipped' : 'waiting';
-    return `<span style="white-space:nowrap"><span class="status-dot ${dot}"></span><span class="mono">${escHtml(curr)} → ${escHtml(next)}</span></span>`;
+    frac = r.query_count === 0 ? 0 : (((r.query_count - 1) % threshold) + 1);
+  } else if (!r.flipped) {
+    frac = Math.min(r.query_count, threshold);
   }
-  const dot  = r.flipped ? 'flipped' : 'waiting';
-  const text = r.flipped ? 'Flipped → ' + r.second_ip : 'Waiting (' + r.query_count + '/' + r.threshold + ')';
-  return `<span style="white-space:nowrap"><span class="status-dot ${dot}"></span>${escHtml(text)}</span>`;
+
+  const fracHtml = frac !== undefined ? ` <span class="mono">${frac}/${threshold}</span>` : '';
+  const title = `${r.first_ip} → ${r.second_ip}`;
+  return `<span style="white-space:nowrap" title="${escHtml(title)}"><span class="status-dot ${dot}"></span>${arrow}${fracHtml}</span>`;
 }
 
 async function loadRebind() {
@@ -415,28 +446,21 @@ function renderRebind(rules) {
   }
   let html = `<table>
     <thead><tr>
-      <th>Label / ID</th>
+      <th>Label</th>
       <th>Hostname</th>
       <th>First IP</th>
-      <th>Second IP</th>
-      <th>N</th>
-      <th>Mode</th>
-      <th>Queries</th>
       <th>Status</th>
+      <th>Count</th>
       <th>Actions</th>
     </tr></thead><tbody>`;
   rules.forEach(r => {
     const slug = r.label || r.id;
-    const modeText = r.flip_flop ? 'flip‑flop' : 'latch';
     html += `<tr>
       <td class="mono">${escHtml(slug)}</td>
       <td class="mono" style="font-size:11px;white-space:nowrap">${escHtml(r.hostname)} <button class="copy-btn" onclick="copyText(this,'${escHtml(r.hostname)}')">copy</button></td>
       <td class="mono">${escHtml(r.first_ip)}</td>
-      <td class="mono">${escHtml(r.second_ip)}</td>
-      <td>${r.threshold}</td>
-      <td>${escHtml(modeText)}</td>
-      <td id="rb-count-${escHtml(r.id)}">${r.query_count}</td>
       <td id="rb-status-${escHtml(r.id)}">${rebindStatusHtml(r)}</td>
+      <td><a href="#" id="rb-count-${escHtml(r.id)}" onclick="viewRebindLog(event,'${escHtml(r.id)}')">${r.query_count}</a></td>
       <td style="display:flex;gap:6px">
         <button class="btn secondary small" onclick="resetRebind('${escHtml(r.id)}')">Reset</button>
         <button class="btn danger small" onclick="deleteRebind('${escHtml(r.id)}')">Delete</button>
