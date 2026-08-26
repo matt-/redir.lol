@@ -94,9 +94,11 @@ func Open(path string) (*Store, error) {
 	db.Exec(`ALTER TABLE users ADD COLUMN verify_token TEXT`)
 	db.Exec(`ALTER TABLE users ADD COLUMN verify_expires DATETIME`)
 	// Migration: add created_at so admin listings can sort newest-first (the
-	// id is a random hex string, not chronological). Existing rows all get
-	// "now" as their creation time since the real value predates this column.
-	db.Exec(`ALTER TABLE rebind_rules ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP`)
+	// id is a random hex string, not chronological). SQLite rejects
+	// non-constant defaults (e.g. CURRENT_TIMESTAMP) on ADD COLUMN, so add it
+	// with a sentinel default and backfill existing rows to "now" separately.
+	db.Exec(`ALTER TABLE rebind_rules ADD COLUMN created_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00'`)
+	db.Exec(`UPDATE rebind_rules SET created_at = CURRENT_TIMESTAMP WHERE created_at = '1970-01-01 00:00:00'`)
 
 	s := &Store{
 		db:            db,
