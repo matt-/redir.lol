@@ -130,20 +130,20 @@
 
       <div class="form-card">
         <h3>New DNS Rebind Rule</h3>
-        <div class="form-row">
-          <div class="form-group">
+        <div class="form-row compact">
+          <div class="form-group" style="width:160px">
             <label>Label</label>
             <div style="display:flex;gap:6px">
               <input id="rb-label" type="text" placeholder="aws-rebind" autocomplete="off" style="flex:1;min-width:0">
               <button type="button" class="btn secondary small" onclick="refreshRbLabel()" title="Generate new label">↺</button>
             </div>
           </div>
-          <div class="form-group">
-            <label>First IP (attacker, serves first)</label>
+          <div class="form-group" style="width:150px">
+            <label>First IP (attacker)</label>
             <input id="rb-first-ip" type="text" placeholder="1.2.3.4" autocomplete="off">
           </div>
-          <div class="form-group">
-            <label>Second IP (target, after flip)</label>
+          <div class="form-group" style="width:170px">
+            <label>Second IP (target)</label>
             <input id="rb-second-ip" type="text" placeholder="169.254.169.254" list="rebind-presets-list" autocomplete="off">
             <datalist id="rebind-presets-list">
               <option value="169.254.169.254">AWS/Azure metadata</option>
@@ -151,10 +151,13 @@
               <option value="172.17.0.1">Docker bridge</option>
             </datalist>
           </div>
-          <div class="form-group">
-            <label>Flip after N queries</label>
-            <input id="rb-threshold" type="number" value="1" min="1" style="width:90px">
-            <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:400;margin-top:2px">
+          <div class="form-group" style="width:100px">
+            <label>Flip after</label>
+            <input id="rb-threshold" type="number" value="1" min="1">
+          </div>
+          <div class="form-group" style="width:260px">
+            <label style="visibility:hidden">Flip flop</label>
+            <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:400">
               <input id="rb-flip-flop" type="checkbox">
               Flip flop (alternate forever)
             </label>
