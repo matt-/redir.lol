@@ -412,11 +412,12 @@ async function deleteRule(id) {
 
 // --- Rebind Rules ---
 
-// Arrow flips direction when the resolved IP flips; the fraction shows
+// Arrow sits between the two IPs and points at whichever is currently
+// resolved; it flips left/right when the rule flips. The fraction shows
 // progress toward the next flip (or, in latch mode, toward the one-time flip).
 function rebindStatusHtml(r) {
   const dot   = r.flipped ? 'flipped' : 'waiting';
-  const arrow = r.flipped ? '↑' : '↓';
+  const arrow = r.flipped ? '→' : '←';
   const threshold = r.threshold || 1;
 
   let frac;
@@ -426,9 +427,9 @@ function rebindStatusHtml(r) {
     frac = Math.min(r.query_count, threshold);
   }
 
-  const fracHtml = frac !== undefined ? ` <span class="mono">${frac}/${threshold}</span>` : '';
-  const title = `${r.first_ip} → ${r.second_ip}`;
-  return `<span style="white-space:nowrap" title="${escHtml(title)}"><span class="status-dot ${dot}"></span>${arrow}${fracHtml}</span>`;
+  const fracHtml = frac !== undefined ? ` <span class="mono" style="color:#64748b">${frac}/${threshold}</span>` : '';
+  return `<span style="white-space:nowrap"><span class="status-dot ${dot}"></span>` +
+    `<span class="mono">${escHtml(r.first_ip)} ${arrow} ${escHtml(r.second_ip)}</span>${fracHtml}</span>`;
 }
 
 async function loadRebind() {
