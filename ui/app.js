@@ -412,11 +412,14 @@ async function deleteRule(id) {
 
 // --- Rebind Rules ---
 
+const IP_CURRENT_COLOR = '#4ade80'; // green — currently resolved
+const IP_NEXT_COLOR    = '#facc15'; // yellow — will resolve after the next flip
+
 // Arrow sits between the two IPs and points at whichever is currently
-// resolved; it flips left/right when the rule flips. The fraction shows
-// progress toward the next flip (or, in latch mode, toward the one-time flip).
+// resolved; the current IP is green, the other is yellow, and both flip when
+// the rule flips. The fraction shows progress toward the next flip (or, in
+// latch mode, toward the one-time flip).
 function rebindStatusHtml(r) {
-  const dot   = r.flipped ? 'flipped' : 'waiting';
   const arrow = r.flipped ? '→' : '←';
   const threshold = r.threshold || 1;
 
@@ -429,9 +432,12 @@ function rebindStatusHtml(r) {
     }
   }
 
+  const firstColor  = r.flipped ? IP_NEXT_COLOR : IP_CURRENT_COLOR;
+  const secondColor = r.flipped ? IP_CURRENT_COLOR : IP_NEXT_COLOR;
   const fracHtml = frac !== undefined ? ` <span class="mono" style="color:#64748b">${frac}/${threshold}</span>` : '';
-  return `<span style="white-space:nowrap"><span class="status-dot ${dot}"></span>` +
-    `<span class="mono">${escHtml(r.first_ip)} ${arrow} ${escHtml(r.second_ip)}</span>${fracHtml}</span>`;
+  return `<span class="mono" style="white-space:nowrap">` +
+    `<span style="color:${firstColor}">${escHtml(r.first_ip)}</span> ${arrow} ` +
+    `<span style="color:${secondColor}">${escHtml(r.second_ip)}</span></span>${fracHtml}`;
 }
 
 async function loadRebind() {
