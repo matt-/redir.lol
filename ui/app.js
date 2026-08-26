@@ -344,10 +344,10 @@ function renderRules(rules) {
   const proxyBase = cfg.proxy_domain ? location.protocol + '//' + cfg.proxy_domain : baseURL;
   let html = `<table>
     <thead><tr>
+      <th>Redirect URL</th>
       <th>Type</th>
       <th>Target URL</th>
       <th>Hits</th>
-      <th>Redirect URL</th>
       <th>Actions</th>
     </tr></thead><tbody>`;
   rules.forEach(r => {
@@ -357,10 +357,10 @@ function renderRules(rules) {
     const typeBadge = typeLabel(r);
     const hitClass = r.hit_count > 0 ? 'has-hits' : '';
     html += `<tr>
+      <td class="mono" style="font-size:11px">${escHtml(redirectURL)} <button class="copy-btn" onclick="copyText(this,'${escHtml(redirectURL)}')">copy</button></td>
       <td>${typeBadge}</td>
       <td class="mono" style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(r.target_url)}">${escHtml(r.target_url)}</td>
       <td><span class="hit-count ${hitClass}">${r.hit_count}</span></td>
-      <td class="mono" style="font-size:11px">${escHtml(redirectURL)} <button class="copy-btn" onclick="copyText(this,'${escHtml(redirectURL)}')">copy</button></td>
       <td><button class="btn danger small" onclick="deleteRule('${escHtml(r.id)}')">Delete</button></td>
     </tr>`;
   });
