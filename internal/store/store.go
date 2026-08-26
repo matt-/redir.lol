@@ -54,11 +54,12 @@ CREATE TABLE IF NOT EXISTS rebind_rules (
 );
 
 CREATE TABLE IF NOT EXISTS hits (
-	id         INTEGER PRIMARY KEY AUTOINCREMENT,
-	rule_id    TEXT NOT NULL,
-	remote_ip  TEXT,
-	user_agent TEXT,
-	timestamp  DATETIME NOT NULL
+	id          INTEGER PRIMARY KEY AUTOINCREMENT,
+	rule_id     TEXT NOT NULL,
+	remote_ip   TEXT,
+	user_agent  TEXT,
+	timestamp   DATETIME NOT NULL,
+	raw_request TEXT
 );
 `
 
@@ -99,6 +100,9 @@ func Open(path string) (*Store, error) {
 	// with a sentinel default and backfill existing rows to "now" separately.
 	db.Exec(`ALTER TABLE rebind_rules ADD COLUMN created_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00'`)
 	db.Exec(`UPDATE rebind_rules SET created_at = CURRENT_TIMESTAMP WHERE created_at = '1970-01-01 00:00:00'`)
+	// Migration: add raw_request for the hit-detail view (nullable, so no
+	// default-value restriction applies).
+	db.Exec(`ALTER TABLE hits ADD COLUMN raw_request TEXT`)
 
 	s := &Store{
 		db:            db,
@@ -304,8 +308,8 @@ func (s *Store) RecordHit(h *Hit) error {
 		h.Timestamp = time.Now().UTC()
 	}
 	_, err := s.db.Exec(
-		`INSERT INTO hits (rule_id, remote_ip, user_agent, timestamp) VALUES (?, ?, ?, ?)`,
-		h.RuleID, h.RemoteIP, h.UserAgent, h.Timestamp,
+		`INSERT INTO hits (rule_id, remote_ip, user_agent, timestamp, raw_request) VALUES (?, ?, ?, ?, ?)`,
+		h.RuleID, h.RemoteIP, h.UserAgent, h.Timestamp, nullableString(h.RawRequest),
 	)
 	if err != nil {
 		return err
@@ -319,7 +323,7 @@ func (s *Store) ListHits(limit int, userID string) ([]*Hit, error) {
 		limit = 100
 	}
 	rows, err := s.db.Query(
-		`SELECT h.id, h.rule_id, COALESCE(r.label, h.rule_id), h.remote_ip, h.user_agent, h.timestamp
+		`SELECT h.id, h.rule_id, COALESCE(r.label, h.rule_id), h.remote_ip, h.user_agent, h.timestamp, COALESCE(h.raw_request,'')
 		 FROM hits h LEFT JOIN rules r ON h.rule_id = r.id
 		 WHERE r.user_id=?
 		 ORDER BY h.id DESC LIMIT ?`,
@@ -332,7 +336,7 @@ func (s *Store) ListHits(limit int, userID string) ([]*Hit, error) {
 	var hits []*Hit
 	for rows.Next() {
 		h := &Hit{}
-		if err := rows.Scan(&h.ID, &h.RuleID, &h.RuleLabel, &h.RemoteIP, &h.UserAgent, &h.Timestamp); err != nil {
+		if err := rows.Scan(&h.ID, &h.RuleID, &h.RuleLabel, &h.RemoteIP, &h.UserAgent, &h.Timestamp, &h.RawRequest); err != nil {
 			return nil, err
 		}
 		hits = append(hits, h)
@@ -345,7 +349,7 @@ func (s *Store) ListAllHits(limit int) ([]*Hit, error) {
 		limit = 200
 	}
 	rows, err := s.db.Query(
-		`SELECT h.id, h.rule_id, COALESCE(r.label, h.rule_id), h.remote_ip, h.user_agent, h.timestamp
+		`SELECT h.id, h.rule_id, COALESCE(r.label, h.rule_id), h.remote_ip, h.user_agent, h.timestamp, COALESCE(h.raw_request,'')
 		 FROM hits h LEFT JOIN rules r ON h.rule_id = r.id
 		 ORDER BY h.id DESC LIMIT ?`,
 		limit,
@@ -357,7 +361,7 @@ func (s *Store) ListAllHits(limit int) ([]*Hit, error) {
 	var hits []*Hit
 	for rows.Next() {
 		h := &Hit{}
-		if err := rows.Scan(&h.ID, &h.RuleID, &h.RuleLabel, &h.RemoteIP, &h.UserAgent, &h.Timestamp); err != nil {
+		if err := rows.Scan(&h.ID, &h.RuleID, &h.RuleLabel, &h.RemoteIP, &h.UserAgent, &h.Timestamp, &h.RawRequest); err != nil {
 			return nil, err
 		}
 		hits = append(hits, h)

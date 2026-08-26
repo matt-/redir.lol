@@ -37,12 +37,13 @@ type RebindRule struct {
 }
 
 type Hit struct {
-	ID        int64     `json:"id"`
-	RuleID    string    `json:"rule_id"`
-	RuleLabel string    `json:"rule_label,omitempty"`
-	RemoteIP  string    `json:"remote_ip"`
-	UserAgent string    `json:"user_agent"`
-	Timestamp time.Time `json:"timestamp"`
+	ID         int64     `json:"id"`
+	RuleID     string    `json:"rule_id"`
+	RuleLabel  string    `json:"rule_label,omitempty"`
+	RemoteIP   string    `json:"remote_ip"`
+	UserAgent  string    `json:"user_agent"`
+	Timestamp  time.Time `json:"timestamp"`
+	RawRequest string    `json:"raw_request,omitempty"`
 }
 
 type AdminRule struct {

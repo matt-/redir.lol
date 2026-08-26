@@ -3,6 +3,7 @@ package redirect
 import (
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"strings"
 
 	"github.com/mattaustin/redir/internal/proxy"
@@ -47,13 +48,19 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Dump the request synchronously — r must not be read concurrently with
+	// the handler below, which doesn't touch it further, so this is safe to
+	// hand off. body=false since redirect hits are always GETs.
+	rawRequest, _ := httputil.DumpRequest(r, false)
+
 	// record hit asynchronously
 	go func() {
 		h.store.IncrementHitCount(rule.ID)
 		h.store.RecordHit(&store.Hit{
-			RuleID:    rule.ID,
-			RemoteIP:  remoteIP(r),
-			UserAgent: r.UserAgent(),
+			RuleID:     rule.ID,
+			RemoteIP:   remoteIP(r),
+			UserAgent:  r.UserAgent(),
+			RawRequest: string(rawRequest),
 		})
 	}()
 

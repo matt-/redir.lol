@@ -522,8 +522,11 @@ async function loadHits() {
   } catch(e) {}
 }
 
+let hitsById = {};
+
 function renderHits(hits) {
   const cont = document.getElementById('hits-container');
+  hitsById = {};
   if (!hits || hits.length === 0) {
     cont.innerHTML = '<div class="empty-state"><p>No hits recorded yet.</p></div>';
     return;
@@ -531,7 +534,8 @@ function renderHits(hits) {
   let html = `<table class="hits-table">
     <thead><tr><th>Time</th><th>Label</th><th>Remote IP</th><th>User-Agent</th></tr></thead><tbody>`;
   hits.forEach(h => {
-    html += `<tr>
+    hitsById[h.id] = h;
+    html += `<tr style="cursor:pointer" onclick="showHitDetail(${h.id})">
       <td class="timestamp">${escHtml(formatTimestamp(h.timestamp))}</td>
       <td class="mono">${escHtml(h.rule_label || h.rule_id)}</td>
       <td class="mono">${escHtml(h.remote_ip || '')}</td>
@@ -540,6 +544,19 @@ function renderHits(hits) {
   });
   html += '</tbody></table>';
   cont.innerHTML = html;
+}
+
+function showHitDetail(id) {
+  const h = hitsById[id];
+  if (!h) return;
+  document.getElementById('hit-detail-meta').textContent =
+    `${formatTimestamp(h.timestamp)}  ·  ${h.rule_label || h.rule_id}  ·  ${h.remote_ip || ''}`;
+  document.getElementById('hit-detail-raw').textContent = h.raw_request || '(no request captured for this hit)';
+  document.getElementById('hit-detail-modal').classList.add('modal-open');
+}
+
+function closeHitDetail() {
+  document.getElementById('hit-detail-modal').classList.remove('modal-open');
 }
 
 // --- Config ---
