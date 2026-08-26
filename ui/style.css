@@ -115,6 +115,10 @@ footer {
 
 .section-header h2 { font-size: 15px; font-weight: 600; color: #e2e8f0; }
 
+/* Spacing between stacked table sections that aren't separated by a form-card
+   (e.g. Hit Log directly above the Rebind Query Log). */
+#hits-container { margin-bottom: 24px; }
+
 button.btn {
   background: #f97316;
   color: #fff;
