@@ -434,9 +434,10 @@ function rebindStatusHtml(r) {
   const firstColor  = r.flipped ? IP_NEXT_COLOR : IP_CURRENT_COLOR;
   const secondColor = r.flipped ? IP_CURRENT_COLOR : IP_NEXT_COLOR;
   const fracHtml = frac !== undefined ? ` <span class="mono" style="color:#64748b">${frac}/${threshold}</span>` : '';
+  const loopHtml = r.flip_flop ? ` <span title="flip-flop: alternates forever">↻</span>` : '';
   return `<span class="mono" style="white-space:nowrap">` +
     `<span style="color:${firstColor}">${escHtml(r.first_ip)}</span> ${arrow} ` +
-    `<span style="color:${secondColor}">${escHtml(r.second_ip)}</span></span>${fracHtml}`;
+    `<span style="color:${secondColor}">${escHtml(r.second_ip)}</span></span>${fracHtml}${loopHtml}`;
 }
 
 async function loadRebind() {
