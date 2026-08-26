@@ -25,14 +25,15 @@ type Rule struct {
 }
 
 type RebindRule struct {
-	ID        string `json:"id"`
-	Label     string `json:"label"`
-	Hostname  string `json:"hostname"`
-	FirstIP   string `json:"first_ip"`
-	SecondIP  string `json:"second_ip"`
-	Threshold int    `json:"threshold"`
-	FlipFlop  bool   `json:"flip_flop"`
-	UserID    string `json:"user_id"`
+	ID        string    `json:"id"`
+	Label     string    `json:"label"`
+	Hostname  string    `json:"hostname"`
+	FirstIP   string    `json:"first_ip"`
+	SecondIP  string    `json:"second_ip"`
+	Threshold int       `json:"threshold"`
+	FlipFlop  bool      `json:"flip_flop"`
+	UserID    string    `json:"user_id"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Hit struct {

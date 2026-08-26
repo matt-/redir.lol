@@ -49,7 +49,8 @@ CREATE TABLE IF NOT EXISTS rebind_rules (
 	second_ip   TEXT NOT NULL,
 	threshold   INTEGER NOT NULL DEFAULT 1,
 	flip_flop   INTEGER NOT NULL DEFAULT 0,
-	user_id     TEXT NOT NULL DEFAULT ''
+	user_id     TEXT NOT NULL DEFAULT '',
+	created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS hits (
@@ -92,6 +93,10 @@ func Open(path string) (*Store, error) {
 	db.Exec(`ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 1`)
 	db.Exec(`ALTER TABLE users ADD COLUMN verify_token TEXT`)
 	db.Exec(`ALTER TABLE users ADD COLUMN verify_expires DATETIME`)
+	// Migration: add created_at so admin listings can sort newest-first (the
+	// id is a random hex string, not chronological). Existing rows all get
+	// "now" as their creation time since the real value predates this column.
+	db.Exec(`ALTER TABLE rebind_rules ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP`)
 
 	s := &Store{
 		db:            db,
@@ -109,7 +114,7 @@ func Open(path string) (*Store, error) {
 // since TTL=1 rebind records mean the resolver is re-queried on every request.
 func (s *Store) loadRebindCache() error {
 	rows, err := s.db.Query(
-		`SELECT id, COALESCE(label,''), hostname, first_ip, second_ip, threshold, flip_flop, user_id FROM rebind_rules`,
+		`SELECT id, COALESCE(label,''), hostname, first_ip, second_ip, threshold, flip_flop, user_id, created_at FROM rebind_rules`,
 	)
 	if err != nil {
 		return err
@@ -120,7 +125,7 @@ func (s *Store) loadRebindCache() error {
 	byLabel := make(map[string]*RebindRule)
 	for rows.Next() {
 		r := &RebindRule{}
-		if err := rows.Scan(&r.ID, &r.Label, &r.Hostname, &r.FirstIP, &r.SecondIP, &r.Threshold, &r.FlipFlop, &r.UserID); err != nil {
+		if err := rows.Scan(&r.ID, &r.Label, &r.Hostname, &r.FirstIP, &r.SecondIP, &r.Threshold, &r.FlipFlop, &r.UserID, &r.CreatedAt); err != nil {
 			return err
 		}
 		byID[r.ID] = r
@@ -367,10 +372,13 @@ func (s *Store) CreateRebindRule(r *RebindRule) error {
 	if r.Threshold <= 0 {
 		r.Threshold = 1
 	}
+	if r.CreatedAt.IsZero() {
+		r.CreatedAt = time.Now().UTC()
+	}
 	_, err := s.db.Exec(
-		`INSERT INTO rebind_rules (id, label, hostname, first_ip, second_ip, threshold, flip_flop, user_id)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		r.ID, nullableString(r.Label), r.Hostname, r.FirstIP, r.SecondIP, r.Threshold, r.FlipFlop, r.UserID,
+		`INSERT INTO rebind_rules (id, label, hostname, first_ip, second_ip, threshold, flip_flop, user_id, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		r.ID, nullableString(r.Label), r.Hostname, r.FirstIP, r.SecondIP, r.Threshold, r.FlipFlop, r.UserID, r.CreatedAt,
 	)
 	if err != nil {
 		return err
@@ -381,8 +389,8 @@ func (s *Store) CreateRebindRule(r *RebindRule) error {
 
 func (s *Store) ListRebindRules(userID string) ([]*RebindRule, error) {
 	rows, err := s.db.Query(
-		`SELECT id, COALESCE(label,''), hostname, first_ip, second_ip, threshold, flip_flop, user_id
-		 FROM rebind_rules WHERE user_id=?`,
+		`SELECT id, COALESCE(label,''), hostname, first_ip, second_ip, threshold, flip_flop, user_id, created_at
+		 FROM rebind_rules WHERE user_id=? ORDER BY created_at DESC`,
 		userID,
 	)
 	if err != nil {
@@ -392,7 +400,7 @@ func (s *Store) ListRebindRules(userID string) ([]*RebindRule, error) {
 	var rules []*RebindRule
 	for rows.Next() {
 		r := &RebindRule{}
-		if err := rows.Scan(&r.ID, &r.Label, &r.Hostname, &r.FirstIP, &r.SecondIP, &r.Threshold, &r.FlipFlop, &r.UserID); err != nil {
+		if err := rows.Scan(&r.ID, &r.Label, &r.Hostname, &r.FirstIP, &r.SecondIP, &r.Threshold, &r.FlipFlop, &r.UserID, &r.CreatedAt); err != nil {
 			return nil, err
 		}
 		rules = append(rules, r)
@@ -465,9 +473,9 @@ func (s *Store) ListAllRebindRules(page, perPage int) ([]*AdminRebindRule, int, 
 
 	rows, err := s.db.Query(
 		`SELECT r.id, COALESCE(r.label,''), r.hostname, r.first_ip, r.second_ip, r.threshold, r.flip_flop, r.user_id,
-		        COALESCE(u.email,'')
+		        r.created_at, COALESCE(u.email,'')
 		 FROM rebind_rules r LEFT JOIN users u ON r.user_id = u.id
-		 ORDER BY r.id DESC
+		 ORDER BY r.created_at DESC
 		 LIMIT ? OFFSET ?`,
 		perPage, offset,
 	)
@@ -481,7 +489,7 @@ func (s *Store) ListAllRebindRules(page, perPage int) ([]*AdminRebindRule, int, 
 		ar := &AdminRebindRule{}
 		if err := rows.Scan(
 			&ar.ID, &ar.Label, &ar.Hostname, &ar.FirstIP, &ar.SecondIP,
-			&ar.Threshold, &ar.FlipFlop, &ar.UserID, &ar.OwnerEmail,
+			&ar.Threshold, &ar.FlipFlop, &ar.UserID, &ar.CreatedAt, &ar.OwnerEmail,
 		); err != nil {
 			return nil, 0, err
 		}
