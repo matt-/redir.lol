@@ -344,7 +344,7 @@ function renderRules(rules) {
   const proxyBase = cfg.proxy_domain ? location.protocol + '//' + cfg.proxy_domain : baseURL;
   let html = `<table style="table-layout:fixed">
     <thead><tr>
-      <th>Redirect URL</th>
+      <th style="width:280px">Redirect URL</th>
       <th style="width:90px">Type</th>
       <th>Target URL</th>
       <th style="width:70px">Hits</th>
@@ -357,7 +357,10 @@ function renderRules(rules) {
     const typeBadge = typeLabel(r);
     const hitClass = r.hit_count > 0 ? 'has-hits' : '';
     html += `<tr>
-      <td class="mono" style="font-size:11px">${escHtml(redirectURL)} <button class="copy-btn" onclick="copyText(this,'${escHtml(redirectURL)}')">copy</button></td>
+      <td class="mono" style="font-size:11px;white-space:nowrap">
+        <span style="display:inline-block;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle" title="${escHtml(redirectURL)}">${escHtml(redirectURL)}</span>
+        <button class="copy-btn" onclick="copyText(this,'${escHtml(redirectURL)}')">copy</button>
+      </td>
       <td>${typeBadge}</td>
       <td class="mono" style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(r.target_url)}">${escHtml(r.target_url)}</td>
       <td><span class="hit-count ${hitClass}">${r.hit_count}</span></td>
