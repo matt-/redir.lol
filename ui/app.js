@@ -715,30 +715,18 @@ function renderAdminRebind(data) {
   let html = `<table>
     <thead><tr>
       <th><input type="checkbox" id="admin-rb-select-all" onchange="adminRbToggleAll(this)"></th>
-      <th>Label / ID</th>
       <th>Hostname</th>
-      <th>First IP</th>
-      <th>Second IP</th>
-      <th>N</th>
-      <th>Mode</th>
-      <th>Queries</th>
       <th>Status</th>
+      <th>Count</th>
       <th>Owner</th>
       <th>Actions</th>
     </tr></thead><tbody>`;
   rules.forEach(r => {
-    const slug = r.label || r.id;
-    const modeText = r.flip_flop ? 'flip‑flop' : 'latch';
     html += `<tr>
       <td><input type="checkbox" class="admin-rb-cb" value="${escHtml(r.id)}" onchange="adminRbUpdateDeleteBtn()"></td>
-      <td class="mono">${escHtml(slug)}</td>
       <td class="mono" style="font-size:11px;white-space:nowrap">${escHtml(r.hostname)}</td>
-      <td class="mono">${escHtml(r.first_ip)}</td>
-      <td class="mono">${escHtml(r.second_ip)}</td>
-      <td>${r.threshold}</td>
-      <td>${escHtml(modeText)}</td>
-      <td>${r.query_count}</td>
       <td>${rebindStatusHtml(r)}</td>
+      <td>${r.query_count}</td>
       <td style="font-size:12px;color:#94a3b8">${escHtml(r.owner_email || '—')}</td>
       <td><button class="btn danger small" onclick="adminDeleteRebind('${escHtml(r.id)}')">Delete</button></td>
     </tr>`;
