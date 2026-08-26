@@ -7,3 +7,8 @@ public_ip: 1.2.3.4
 bind: 0.0.0.0
 admin_emails:
   - you@example.com
+# Email verification for new signups. Requires Cloudflare Email Sending to be
+# onboarded for this domain, plus CF_ACCOUNT_ID and CF_EMAIL_API_TOKEN set in
+# the environment. If unset, new accounts are auto-verified (no email sent).
+verify_from_email: verify@yourdomain.com
+verify_from_name: redir

@@ -5,7 +5,13 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/redir -port 80 -dns-port 53 -domain rebind.redir.lol
+# systemd does not set $HOME, so config.DefaultPath() (~/.redir/config.yaml)
+# would otherwise resolve to a bogus path and create a fresh empty DB.
+# Point explicitly at the real config to avoid that.
+ExecStart=/usr/local/bin/redir -config /root/.redir/config.yaml -port 80 -dns-port 53 -domain rebind.redir.lol
+# CF_ACCOUNT_ID / CF_EMAIL_API_TOKEN for email verification (Cloudflare Email
+# Sending) — not committed; create this file on the host with mode 600.
+EnvironmentFile=-/etc/redir.env
 Restart=on-failure
 RestartSec=2
 StandardOutput=journal

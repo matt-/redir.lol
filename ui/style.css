@@ -8,6 +8,9 @@ body {
   min-height: 100vh;
 }
 
+a { color: #fb923c; text-decoration: none; }
+a:hover { color: #f97316; text-decoration: underline; }
+
 header {
   background: #1a1d27;
   border-bottom: 1px solid #2d3148;

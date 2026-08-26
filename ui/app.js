@@ -138,7 +138,14 @@ async function login() {
     const me = await api('/api/auth/me');
     showApp(me);
     initApp();
-  } catch(e) { showAuthAlert(e.message); }
+  } catch(e) {
+    if (e.data && e.data.unverified) {
+      document.getElementById('auth-alert').innerHTML =
+        `<div class="alert error">${escHtml(e.message)} — <a href="#" onclick="resendVerification(event)">resend verification email</a></div>`;
+    } else {
+      showAuthAlert(e.message);
+    }
+  }
 }
 
 async function register() {
@@ -146,10 +153,26 @@ async function register() {
   const password = document.getElementById('reg-password').value;
   if (!email || !password) { showAuthAlert('Email and password are required'); return; }
   try {
-    await api('/api/auth/register', 'POST', { email, password });
+    const res = await api('/api/auth/register', 'POST', { email, password });
+    if (res && res.pending_verification) {
+      showLogin();
+      document.getElementById('login-email').value = email;
+      showAuthAlert('Account created — check your email for a verification link before signing in.', 'success');
+      return;
+    }
     const me = await api('/api/auth/me');
     showApp(me);
     initApp();
+  } catch(e) { showAuthAlert(e.message); }
+}
+
+async function resendVerification(evt) {
+  if (evt) evt.preventDefault();
+  const email = document.getElementById('login-email').value.trim();
+  if (!email) { showAuthAlert('Enter your email above first'); return; }
+  try {
+    const res = await api('/api/auth/resend', 'POST', { email });
+    showAuthAlert(res.message, 'success');
   } catch(e) { showAuthAlert(e.message); }
 }
 
@@ -159,21 +182,40 @@ async function logout() {
   showLogin();
 }
 
-function showAuthAlert(msg) {
+function showAuthAlert(msg, type) {
   document.getElementById('auth-alert').innerHTML =
-    `<div class="alert error">${escHtml(msg)}</div>`;
+    `<div class="alert ${type || 'error'}">${escHtml(msg)}</div>`;
 }
 
 // --- Init ---
 
 async function init() {
+  const params = new URLSearchParams(location.search);
   try {
     const me = await api('/api/auth/me');
     showApp(me);
     initApp(me);
+    if (params.get('verified') === '1') {
+      showToast('Email verified — you are now signed in.', 'success');
+    }
   } catch(e) {
     showAuthPane();
+    if (params.get('verify_error') === '1') {
+      showAuthAlert('That verification link is invalid or expired. Enter your email and resend below.');
+    }
   }
+  if (params.has('verified') || params.has('verify_error')) {
+    history.replaceState({}, '', location.pathname);
+  }
+}
+
+function showToast(msg, type) {
+  const el = document.createElement('div');
+  el.className = `alert ${type || 'success'}`;
+  el.style.cssText = 'position:fixed;top:16px;right:16px;z-index:1000;max-width:360px;box-shadow:0 4px 12px rgba(0,0,0,.15)';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 5000);
 }
 
 async function initApp(me) {
@@ -230,7 +272,11 @@ async function api(path, method, body) {
   const r = await fetch(path, opts);
   if (r.status === 204) return null;
   const data = await r.json();
-  if (!r.ok) throw new Error(data.error || r.statusText);
+  if (!r.ok) {
+    const err = new Error(data.error || r.statusText);
+    err.data = data;
+    throw err;
+  }
   return data;
 }
 
@@ -748,6 +794,7 @@ function renderAdminUsers(users) {
     <thead><tr>
       <th><input type="checkbox" id="admin-usr-select-all" onchange="adminUsrToggleAll(this)"></th>
       <th>Email</th>
+      <th>Verified</th>
       <th>ID</th>
       <th>Created</th>
       <th>Actions</th>
@@ -757,6 +804,7 @@ function renderAdminUsers(users) {
     html += `<tr>
       <td><input type="checkbox" class="admin-usr-cb" value="${escHtml(u.id)}" onchange="adminUsrUpdateDeleteBtn()"></td>
       <td>${escHtml(u.email)}</td>
+      <td>${u.email_verified ? '✓' : '—'}</td>
       <td class="mono" style="font-size:11px;color:#64748b">${escHtml(u.id)}</td>
       <td class="timestamp">${created}</td>
       <td style="display:flex;gap:6px">

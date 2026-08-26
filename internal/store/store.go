@@ -14,10 +14,13 @@ import (
 
 const schema = `
 CREATE TABLE IF NOT EXISTS users (
-	id            TEXT PRIMARY KEY,
-	email         TEXT UNIQUE NOT NULL,
-	password_hash TEXT NOT NULL,
-	created_at    DATETIME NOT NULL
+	id             TEXT PRIMARY KEY,
+	email          TEXT UNIQUE NOT NULL,
+	password_hash  TEXT NOT NULL,
+	created_at     DATETIME NOT NULL,
+	email_verified INTEGER NOT NULL DEFAULT 0,
+	verify_token   TEXT,
+	verify_expires DATETIME
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -84,6 +87,11 @@ func Open(path string) (*Store, error) {
 	}
 	// Migration: add flip_flop column to existing databases (ignore error if already present)
 	db.Exec(`ALTER TABLE rebind_rules ADD COLUMN flip_flop INTEGER NOT NULL DEFAULT 0`)
+	// Migration: add email verification columns. Existing accounts predate this
+	// feature, so default them to verified (1) rather than locking everyone out.
+	db.Exec(`ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 1`)
+	db.Exec(`ALTER TABLE users ADD COLUMN verify_token TEXT`)
+	db.Exec(`ALTER TABLE users ADD COLUMN verify_expires DATETIME`)
 
 	s := &Store{
 		db:            db,

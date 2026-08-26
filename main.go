@@ -19,6 +19,7 @@ import (
 	"github.com/mattaustin/redir/internal/auth"
 	appcfg "github.com/mattaustin/redir/internal/config"
 	dnsserver "github.com/mattaustin/redir/internal/dns"
+	"github.com/mattaustin/redir/internal/mailer"
 	"github.com/mattaustin/redir/internal/proxy"
 	"github.com/mattaustin/redir/internal/redirect"
 	"github.com/mattaustin/redir/internal/store"
@@ -119,10 +120,25 @@ func main() {
 	rh := redirect.New(s, cfg.ProxyDomain)
 	mux.Handle("/r/", rh)
 
+	var vcfg auth.VerifyConfig
+	cfAccountID := os.Getenv("CF_ACCOUNT_ID")
+	cfAPIToken := os.Getenv("CF_EMAIL_API_TOKEN")
+	if cfAccountID != "" && cfAPIToken != "" && cfg.VerifyFromEmail != "" {
+		vcfg = auth.VerifyConfig{
+			Mailer:    mailer.NewCloudflareMailer(cfAccountID, cfAPIToken, cfg.VerifyFromEmail, cfg.VerifyFromName),
+			FromEmail: cfg.VerifyFromEmail,
+		}
+		log.Printf("[auth] email verification enabled, sending as %s", cfg.VerifyFromEmail)
+	} else {
+		log.Printf("[auth] email verification disabled (CF_ACCOUNT_ID/CF_EMAIL_API_TOKEN/verify_from_email not fully configured)")
+	}
+
 	protect := auth.Middleware(s)
-	mux.HandleFunc("/api/auth/register", auth.RegisterHandler(s))
+	mux.HandleFunc("/api/auth/register", auth.RegisterHandler(s, vcfg))
 	mux.HandleFunc("/api/auth/login", auth.LoginHandler(s))
 	mux.HandleFunc("/api/auth/logout", auth.LogoutHandler(s))
+	mux.HandleFunc("/api/auth/verify", auth.VerifyHandler(s))
+	mux.HandleFunc("/api/auth/resend", auth.ResendVerificationHandler(s, vcfg))
 	mux.Handle("/api/auth/me", protect(auth.MeHandler(s, cfg.AdminEmails)))
 
 	apiHandler := api.New(s, apiCfg, cfg.AdminEmails)
