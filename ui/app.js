@@ -414,25 +414,30 @@ async function deleteRule(id) {
 
 const IP_CURRENT_COLOR = '#4ade80'; // green — currently resolved
 const IP_NEXT_COLOR    = '#facc15'; // yellow — will resolve after the next flip
+const IP_DONE_COLOR    = '#64748b'; // gray — latched, will never resolve again
 
 // Arrow sits between the two IPs and points at whichever will resolve next
-// (the yellow one); the current IP is green. The fraction shows progress
-// toward the next flip (or, in latch mode, toward the one-time flip).
+// (the yellow one); the current IP is green. Latch rules that have already
+// flipped are permanent — no more "next", so the arrow becomes a dash and
+// the other IP grays out instead of staying yellow. The fraction shows
+// progress toward the next flip, or the final N/N once a latch rule is done.
 function rebindStatusHtml(r) {
-  const arrow = r.flipped ? '←' : '→';
   const threshold = r.threshold || 1;
+  const latchDone = !r.flip_flop && r.flipped;
+  const arrow = latchDone ? '—' : (r.flipped ? '←' : '→');
 
   let frac;
   if (threshold > 1) {
     if (r.flip_flop) {
       frac = r.query_count === 0 ? 0 : (((r.query_count - 1) % threshold) + 1);
-    } else if (!r.flipped) {
-      frac = Math.min(r.query_count, threshold);
+    } else {
+      frac = latchDone ? threshold : Math.min(r.query_count, threshold);
     }
   }
 
-  const firstColor  = r.flipped ? IP_NEXT_COLOR : IP_CURRENT_COLOR;
-  const secondColor = r.flipped ? IP_CURRENT_COLOR : IP_NEXT_COLOR;
+  const nextColor = latchDone ? IP_DONE_COLOR : IP_NEXT_COLOR;
+  const firstColor  = r.flipped ? nextColor : IP_CURRENT_COLOR;
+  const secondColor = r.flipped ? IP_CURRENT_COLOR : nextColor;
   const fracHtml = frac !== undefined ? ` <span class="mono" style="color:#64748b">${frac}/${threshold}</span>` : '';
   const loopHtml = r.flip_flop ? ` <span title="flip-flop: alternates forever">↻</span>` : '';
   return `<span class="mono" style="white-space:nowrap">` +
