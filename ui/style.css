@@ -298,8 +298,13 @@ tr:hover td { background: #1e2130; }
 .status-dot.waiting { background: #f97316; }
 .status-dot.flipped { background: #16a34a; }
 
-/* Hits tab */
-.hits-table td { font-size: 12px; }
+/* Hits tab — fixed layout so short mono columns (time/label/remote) don't
+   get stretched with uneven leftover space; the last column absorbs it. */
+.hits-table { table-layout: fixed; }
+.hits-table td { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hits-table th:nth-child(1), .hits-table td:nth-child(1) { width: 160px; }
+.hits-table th:nth-child(2), .hits-table td:nth-child(2) { width: 140px; }
+.hits-table th:nth-child(3), .hits-table td:nth-child(3) { width: 200px; }
 .timestamp { color: #64748b; font-family: monospace; }
 
 /* Empty state */

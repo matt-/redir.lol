@@ -535,7 +535,7 @@ function renderHits(hits) {
       <td class="timestamp">${escHtml(formatTimestamp(h.timestamp))}</td>
       <td class="mono">${escHtml(h.rule_label || h.rule_id)}</td>
       <td class="mono">${escHtml(h.remote_ip || '')}</td>
-      <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(h.user_agent || '')}</td>
+      <td title="${escHtml(h.user_agent || '')}">${escHtml(h.user_agent || '')}</td>
     </tr>`;
   });
   html += '</tbody></table>';
@@ -790,7 +790,7 @@ function renderAdminHits(hits) {
       <td class="timestamp">${escHtml(formatTimestamp(h.timestamp))}</td>
       <td class="mono">${escHtml(h.rule_label || h.rule_id)}</td>
       <td class="mono">${escHtml(h.remote_ip || '')}</td>
-      <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(h.user_agent || '')}</td>
+      <td title="${escHtml(h.user_agent || '')}">${escHtml(h.user_agent || '')}</td>
     </tr>`;
   });
   html += '</tbody></table>';
