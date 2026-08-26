@@ -97,16 +97,12 @@ function renderRebindEvents(events) {
     return;
   }
   let html = `<table class="hits-table">
-    <thead><tr><th>Time</th><th>Label / ID</th><th>Remote</th><th>Query #</th><th>Flipped</th><th>Resolved IP</th></tr></thead><tbody>`;
+    <thead><tr><th>Time</th><th>Label</th><th>Remote</th><th>Resolved IP</th></tr></thead><tbody>`;
   events.forEach(e => {
-    const ts = new Date(e.timestamp).toLocaleTimeString();
-    const dot = e.flipped ? 'flipped' : 'waiting';
     html += `<tr>
-      <td class="timestamp">${escHtml(ts)}</td>
+      <td class="timestamp">${escHtml(formatTimestamp(e.timestamp))}</td>
       <td class="mono">${escHtml(e.label || e.rule_id)}</td>
       <td class="mono">${escHtml(e.remote_addr || '')}</td>
-      <td>${e.query_count}${e.flip_flop ? '' : '/' + e.threshold}</td>
-      <td><span class="status-dot ${dot}"></span>${e.flipped ? 'yes' : 'no'}</td>
       <td class="mono">${escHtml(e.ip)}</td>
     </tr>`;
   });
@@ -313,6 +309,13 @@ function showAlert(containerId, msg, type) {
 
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Consistent MM-DD-YYYY HH:MM:SS timestamp format for all log tables.
+function formatTimestamp(ts) {
+  const d = new Date(ts);
+  const pad = n => String(n).padStart(2, '0');
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())}-${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
 // --- Type change handler ---
@@ -526,11 +529,10 @@ function renderHits(hits) {
     return;
   }
   let html = `<table class="hits-table">
-    <thead><tr><th>Time</th><th>Rule</th><th>Remote IP</th><th>User-Agent</th></tr></thead><tbody>`;
+    <thead><tr><th>Time</th><th>Label</th><th>Remote IP</th><th>User-Agent</th></tr></thead><tbody>`;
   hits.forEach(h => {
-    const ts = new Date(h.timestamp).toLocaleString();
     html += `<tr>
-      <td class="timestamp">${escHtml(ts)}</td>
+      <td class="timestamp">${escHtml(formatTimestamp(h.timestamp))}</td>
       <td class="mono">${escHtml(h.rule_label || h.rule_id)}</td>
       <td class="mono">${escHtml(h.remote_ip || '')}</td>
       <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(h.user_agent || '')}</td>
@@ -782,11 +784,10 @@ function renderAdminHits(hits) {
     return;
   }
   let html = `<table class="hits-table">
-    <thead><tr><th>Time</th><th>Rule</th><th>Remote IP</th><th>User-Agent</th></tr></thead><tbody>`;
+    <thead><tr><th>Time</th><th>Label</th><th>Remote IP</th><th>User-Agent</th></tr></thead><tbody>`;
   hits.forEach(h => {
-    const ts = new Date(h.timestamp).toLocaleString();
     html += `<tr>
-      <td class="timestamp">${escHtml(ts)}</td>
+      <td class="timestamp">${escHtml(formatTimestamp(h.timestamp))}</td>
       <td class="mono">${escHtml(h.rule_label || h.rule_id)}</td>
       <td class="mono">${escHtml(h.remote_ip || '')}</td>
       <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(h.user_agent || '')}</td>
