@@ -342,13 +342,13 @@ function renderRules(rules) {
   }
   const baseURL = location.origin;
   const proxyBase = cfg.proxy_domain ? location.protocol + '//' + cfg.proxy_domain : baseURL;
-  let html = `<table>
+  let html = `<table style="table-layout:fixed">
     <thead><tr>
       <th>Redirect URL</th>
-      <th>Type</th>
+      <th style="width:90px">Type</th>
       <th>Target URL</th>
-      <th>Hits</th>
-      <th>Actions</th>
+      <th style="width:70px">Hits</th>
+      <th style="width:90px">Actions</th>
     </tr></thead><tbody>`;
   rules.forEach(r => {
     const slug = r.label || r.id;
