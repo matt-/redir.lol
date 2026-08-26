@@ -344,7 +344,6 @@ function renderRules(rules) {
   const proxyBase = cfg.proxy_domain ? location.protocol + '//' + cfg.proxy_domain : baseURL;
   let html = `<table>
     <thead><tr>
-      <th>Label / ID</th>
       <th>Type</th>
       <th>Target URL</th>
       <th>Hits</th>
@@ -358,7 +357,6 @@ function renderRules(rules) {
     const typeBadge = typeLabel(r);
     const hitClass = r.hit_count > 0 ? 'has-hits' : '';
     html += `<tr>
-      <td class="mono">${escHtml(slug)}</td>
       <td>${typeBadge}</td>
       <td class="mono" style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(r.target_url)}">${escHtml(r.target_url)}</td>
       <td><span class="hit-count ${hitClass}">${r.hit_count}</span></td>
