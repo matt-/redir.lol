@@ -421,10 +421,12 @@ function rebindStatusHtml(r) {
   const threshold = r.threshold || 1;
 
   let frac;
-  if (r.flip_flop) {
-    frac = r.query_count === 0 ? 0 : (((r.query_count - 1) % threshold) + 1);
-  } else if (!r.flipped) {
-    frac = Math.min(r.query_count, threshold);
+  if (threshold > 1) {
+    if (r.flip_flop) {
+      frac = r.query_count === 0 ? 0 : (((r.query_count - 1) % threshold) + 1);
+    } else if (!r.flipped) {
+      frac = Math.min(r.query_count, threshold);
+    }
   }
 
   const fracHtml = frac !== undefined ? ` <span class="mono" style="color:#64748b">${frac}/${threshold}</span>` : '';
