@@ -151,10 +151,23 @@ function showRegister() {
   document.getElementById('auth-alert').innerHTML = '';
 }
 
-async function login() {
+function setBtnLoading(btn, loading, loadingText) {
+  if (!btn) return;
+  if (loading) {
+    btn.dataset.originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner"></span>${loadingText || 'Loading…'}`;
+  } else {
+    btn.disabled = false;
+    if (btn.dataset.originalText) btn.innerHTML = btn.dataset.originalText;
+  }
+}
+
+async function login(btn) {
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
   if (!email || !password) { showAuthAlert('Email and password are required'); return; }
+  setBtnLoading(btn, true, 'Signing in…');
   try {
     await api('/api/auth/login', 'POST', { email, password });
     const me = await api('/api/auth/me');
@@ -167,13 +180,16 @@ async function login() {
     } else {
       showAuthAlert(e.message);
     }
+  } finally {
+    setBtnLoading(btn, false);
   }
 }
 
-async function register() {
+async function register(btn) {
   const email    = document.getElementById('reg-email').value.trim();
   const password = document.getElementById('reg-password').value;
   if (!email || !password) { showAuthAlert('Email and password are required'); return; }
+  setBtnLoading(btn, true, 'Creating account…');
   try {
     const res = await api('/api/auth/register', 'POST', { email, password });
     if (res && res.pending_verification) {
@@ -185,7 +201,9 @@ async function register() {
     const me = await api('/api/auth/me');
     showApp(me);
     initApp();
-  } catch(e) { showAuthAlert(e.message); }
+  } catch(e) { showAuthAlert(e.message); } finally {
+    setBtnLoading(btn, false);
+  }
 }
 
 async function resendVerification(evt) {

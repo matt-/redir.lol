@@ -29,7 +29,7 @@
           <input id="login-password" type="password" placeholder="••••••••" autocomplete="current-password">
         </div>
         <div class="form-actions">
-          <button class="btn" onclick="login()">Sign In</button>
+          <button class="btn" onclick="login(this)">Sign In</button>
           <button class="btn secondary" onclick="showRegister()">Create Account</button>
         </div>
         <p style="margin-top:10px;font-size:12px;text-align:center">
@@ -48,7 +48,7 @@
           <input id="reg-password" type="password" placeholder="min 8 characters" autocomplete="new-password">
         </div>
         <div class="form-actions">
-          <button class="btn" onclick="register()">Create Account</button>
+          <button class="btn" onclick="register(this)">Create Account</button>
           <button class="btn secondary" onclick="showLogin()">Back to Sign In</button>
         </div>
       </div>
