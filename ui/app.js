@@ -245,13 +245,13 @@ async function initApp(me) {
     const [p, c] = await Promise.all([api('/api/presets'), api('/api/info')]);
     presets = p;
     cfg = c;
-    const presetSelect = document.getElementById('rule-target-presets');
-    presetSelect.innerHTML = '<option value="">Common destinations…</option>';
+    const dl = document.getElementById('presets-list');
+    dl.innerHTML = '';
     presets.forEach(ps => {
       const opt = document.createElement('option');
       opt.value = ps.url;
-      opt.textContent = ps.name;
-      presetSelect.appendChild(opt);
+      opt.label = ps.name;
+      dl.appendChild(opt);
     });
     if (cfg.public_ip) {
       document.getElementById('rb-first-ip').value = cfg.public_ip;
@@ -393,15 +393,20 @@ function refreshRbLabel() {
   document.getElementById('rb-label').value = randomLabel();
 }
 
-// A plain <select> instead of a datalist: browsers filter datalist
-// suggestions to substring-matches of the current input value, so after
-// picking one, reopening only shows that same option. A <select> always
-// lists everything, then resets to the placeholder so it's ready to pick
-// a different preset next time.
-function applyTargetPreset(select) {
-  if (!select.value) return;
-  document.getElementById('rule-target').value = select.value;
-  select.selectedIndex = 0;
+// Browsers filter <datalist> suggestions to substring-matches of the
+// input's current value, so once it holds a full preset URL, reopening the
+// list only shows that same match. Clear on focus (matches everything) and
+// restore the previous value on blur if nothing was picked.
+function datalistShowAll(input) {
+  input.dataset.prevValue = input.value;
+  input.value = '';
+}
+
+function datalistRestoreIfEmpty(input) {
+  if (input.value === '' && input.dataset.prevValue) {
+    input.value = input.dataset.prevValue;
+  }
+  delete input.dataset.prevValue;
 }
 
 async function createRule() {
