@@ -77,6 +77,7 @@ func main() {
 		log.Fatalf("open store: %v", err)
 	}
 	defer s.Close()
+	s.SeedAdmins(cfg.AdminEmails)
 
 	iptablesCmd := fmt.Sprintf(
 		"sudo iptables -t nat -A OUTPUT -p udp --dport 53 -j REDIRECT --to-port %d\n"+
@@ -139,9 +140,9 @@ func main() {
 	mux.HandleFunc("/api/auth/logout", auth.LogoutHandler(s))
 	mux.HandleFunc("/api/auth/verify", auth.VerifyHandler(s))
 	mux.HandleFunc("/api/auth/resend", auth.ResendVerificationHandler(s, vcfg))
-	mux.Handle("/api/auth/me", protect(auth.MeHandler(s, cfg.AdminEmails)))
+	mux.Handle("/api/auth/me", protect(auth.MeHandler(s)))
 
-	apiHandler := api.New(s, apiCfg, cfg.AdminEmails)
+	apiHandler := api.New(s, apiCfg)
 	apiHandler.Register(mux, protect)
 
 	// Virtual host router: proxy subdomain gets its own isolated handler.

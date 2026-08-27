@@ -1,6 +1,7 @@
 /* redir — app.js */
 
 let cfg = {};
+let currentUserID = null;
 let presets = [];
 let adminPage = 1;
 let adminTotal = 0;
@@ -125,6 +126,7 @@ function showAuthPane() {
 }
 
 function showApp(me) {
+  currentUserID = me.id;
   document.getElementById('auth-pane').style.display = 'none';
   document.getElementById('app-header').style.display = '';
   document.getElementById('main-nav').style.display = '';
@@ -835,16 +837,22 @@ function renderAdminUsers(users) {
       <th><input type="checkbox" id="admin-usr-select-all" onchange="adminUsrToggleAll(this)"></th>
       <th>Email</th>
       <th>Verified</th>
+      <th>Admin</th>
       <th>ID</th>
       <th>Created</th>
       <th>Actions</th>
     </tr></thead><tbody>`;
   users.forEach(u => {
     const created = new Date(u.created_at).toLocaleDateString();
+    const isSelf = u.id === currentUserID;
     html += `<tr>
       <td><input type="checkbox" class="admin-usr-cb" value="${escHtml(u.id)}" onchange="adminUsrUpdateDeleteBtn()"></td>
       <td>${escHtml(u.email)}</td>
       <td>${u.email_verified ? '✓' : '—'}</td>
+      <td>
+        <input type="checkbox" ${u.is_admin ? 'checked' : ''} ${isSelf ? 'disabled title="You cannot change your own admin status"' : ''}
+          onchange="adminToggleUserAdmin('${escHtml(u.id)}', this)">
+      </td>
       <td class="mono" style="font-size:11px;color:#64748b">${escHtml(u.id)}</td>
       <td class="timestamp">${created}</td>
       <td style="display:flex;gap:6px">
@@ -887,6 +895,17 @@ async function adminDeleteUser(id) {
     await api('/api/admin/users/' + id, 'DELETE');
     loadAdminUsers();
   } catch(e) { showAlert('admin-alert', e.message, 'error'); }
+}
+
+async function adminToggleUserAdmin(id, checkbox) {
+  const isAdmin = checkbox.checked;
+  try {
+    await api('/api/admin/users/' + id, 'PUT', { is_admin: isAdmin });
+    showAlert('admin-alert', isAdmin ? 'User promoted to admin' : 'Admin access removed', 'success');
+  } catch(e) {
+    checkbox.checked = !isAdmin;
+    showAlert('admin-alert', e.message, 'error');
+  }
 }
 
 function adminUsrToggleAll(cb) {

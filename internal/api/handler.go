@@ -40,13 +40,12 @@ var presets = []Preset{
 }
 
 type Handler struct {
-	store       *store.Store
-	config      Config
-	adminEmails []string
+	store  *store.Store
+	config Config
 }
 
-func New(s *store.Store, cfg Config, adminEmails []string) *Handler {
-	return &Handler{store: s, config: cfg, adminEmails: adminEmails}
+func New(s *store.Store, cfg Config) *Handler {
+	return &Handler{store: s, config: cfg}
 }
 
 // Register wires all API routes onto mux. Protected routes are wrapped with
@@ -61,7 +60,7 @@ func (h *Handler) Register(mux *http.ServeMux, protect func(http.Handler) http.H
 	mux.Handle("/api/presets", protect(http.HandlerFunc(h.getPresets)))
 	mux.Handle("/api/info", protect(http.HandlerFunc(h.getInfo)))
 
-	admin := requireAdmin(h.adminEmails, h.store)
+	admin := requireAdmin(h.store)
 	mux.Handle("/api/config", protect(admin(http.HandlerFunc(h.getConfig))))
 	mux.Handle("/api/admin/rules", protect(admin(http.HandlerFunc(h.adminListRules))))
 	mux.Handle("/api/admin/rules/", protect(admin(http.HandlerFunc(h.adminDeleteRule))))

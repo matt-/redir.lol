@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -20,7 +21,8 @@ CREATE TABLE IF NOT EXISTS users (
 	created_at     DATETIME NOT NULL,
 	email_verified INTEGER NOT NULL DEFAULT 0,
 	verify_token   TEXT,
-	verify_expires DATETIME
+	verify_expires DATETIME,
+	is_admin       INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -103,6 +105,8 @@ func Open(path string) (*Store, error) {
 	// Migration: add raw_request for the hit-detail view (nullable, so no
 	// default-value restriction applies).
 	db.Exec(`ALTER TABLE hits ADD COLUMN raw_request TEXT`)
+	// Migration: add is_admin (constant default, so plain ADD COLUMN is fine).
+	db.Exec(`ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0`)
 
 	s := &Store{
 		db:            db,
@@ -113,6 +117,16 @@ func Open(path string) (*Store, error) {
 		return nil, fmt.Errorf("load rebind cache: %w", err)
 	}
 	return s, nil
+}
+
+// SeedAdmins grants is_admin to any existing user whose email appears in
+// emails. This is how config.yaml's admin_emails bootstraps the first
+// admin(s) into the DB; from then on, admin status is managed there (an
+// admin can promote/demote other users) rather than via the config file.
+func (s *Store) SeedAdmins(emails []string) {
+	for _, e := range emails {
+		s.db.Exec(`UPDATE users SET is_admin=1 WHERE email=?`, strings.ToLower(strings.TrimSpace(e)))
+	}
 }
 
 // loadRebindCache populates the in-memory rebind rule cache from disk.

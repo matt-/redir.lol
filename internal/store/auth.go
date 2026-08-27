@@ -34,8 +34,8 @@ func (s *Store) GetUserByEmail(email string) (*User, error) {
 	var verifyToken sql.NullString
 	var verifyExpires sql.NullTime
 	err := s.db.QueryRow(
-		`SELECT id, email, password_hash, created_at, email_verified, verify_token, verify_expires FROM users WHERE email=?`, email,
-	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.CreatedAt, &u.EmailVerified, &verifyToken, &verifyExpires)
+		`SELECT id, email, password_hash, created_at, email_verified, verify_token, verify_expires, is_admin FROM users WHERE email=?`, email,
+	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.CreatedAt, &u.EmailVerified, &verifyToken, &verifyExpires, &u.IsAdmin)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -49,14 +49,20 @@ func (s *Store) GetUserByID(id string) (*User, error) {
 	var verifyToken sql.NullString
 	var verifyExpires sql.NullTime
 	err := s.db.QueryRow(
-		`SELECT id, email, password_hash, created_at, email_verified, verify_token, verify_expires FROM users WHERE id=?`, id,
-	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.CreatedAt, &u.EmailVerified, &verifyToken, &verifyExpires)
+		`SELECT id, email, password_hash, created_at, email_verified, verify_token, verify_expires, is_admin FROM users WHERE id=?`, id,
+	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.CreatedAt, &u.EmailVerified, &verifyToken, &verifyExpires, &u.IsAdmin)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	u.VerifyToken = verifyToken.String
 	u.VerifyExpires = verifyExpires.Time
 	return u, err
+}
+
+// SetUserAdmin promotes or demotes userID's admin status.
+func (s *Store) SetUserAdmin(id string, isAdmin bool) error {
+	_, err := s.db.Exec(`UPDATE users SET is_admin=? WHERE id=?`, isAdmin, id)
+	return err
 }
 
 // SetVerifyToken stores a fresh email-verification token and its expiry for userID.
@@ -133,7 +139,7 @@ func (s *Store) DeleteExpiredSessions() {
 
 func (s *Store) ListUsers() ([]*User, error) {
 	rows, err := s.db.Query(
-		`SELECT id, email, created_at, email_verified FROM users ORDER BY created_at ASC`,
+		`SELECT id, email, created_at, email_verified, is_admin FROM users ORDER BY created_at ASC`,
 	)
 	if err != nil {
 		return nil, err
@@ -142,7 +148,7 @@ func (s *Store) ListUsers() ([]*User, error) {
 	var users []*User
 	for rows.Next() {
 		u := &User{}
-		if err := rows.Scan(&u.ID, &u.Email, &u.CreatedAt, &u.EmailVerified); err != nil {
+		if err := rows.Scan(&u.ID, &u.Email, &u.CreatedAt, &u.EmailVerified, &u.IsAdmin); err != nil {
 			return nil, err
 		}
 		users = append(users, u)

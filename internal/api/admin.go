@@ -12,23 +12,17 @@ import (
 	"github.com/mattaustin/redir/internal/store"
 )
 
-// requireAdmin returns a middleware that allows only users whose email is in adminEmails.
-func requireAdmin(adminEmails []string, s *store.Store) func(http.Handler) http.Handler {
+// requireAdmin returns a middleware that allows only users flagged is_admin in the DB.
+func requireAdmin(s *store.Store) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			userID := auth.UserIDFromCtx(r)
 			u, err := s.GetUserByID(userID)
-			if err != nil || u == nil {
+			if err != nil || u == nil || !u.IsAdmin {
 				jsonError(w, "forbidden", http.StatusForbidden)
 				return
 			}
-			for _, e := range adminEmails {
-				if e == u.Email {
-					next.ServeHTTP(w, r)
-					return
-				}
-			}
-			jsonError(w, "forbidden", http.StatusForbidden)
+			next.ServeHTTP(w, r)
 		})
 	}
 }
@@ -143,6 +137,7 @@ func (h *Handler) adminUserByID(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			Email    string `json:"email"`
 			Password string `json:"password"`
+			IsAdmin  *bool  `json:"is_admin"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			jsonError(w, "invalid JSON", http.StatusBadRequest)
@@ -170,6 +165,16 @@ func (h *Handler) adminUserByID(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if err := h.store.UpdateUserPassword(id, string(hash)); err != nil {
+				jsonError(w, err.Error(), 500)
+				return
+			}
+		}
+		if body.IsAdmin != nil {
+			if id == callerID && !*body.IsAdmin {
+				jsonError(w, "cannot remove your own admin access", http.StatusBadRequest)
+				return
+			}
+			if err := h.store.SetUserAdmin(id, *body.IsAdmin); err != nil {
 				jsonError(w, err.Error(), 500)
 				return
 			}

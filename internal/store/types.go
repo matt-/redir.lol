@@ -82,6 +82,7 @@ type User struct {
 	EmailVerified bool      `json:"email_verified"`
 	VerifyToken   string    `json:"-"`
 	VerifyExpires time.Time `json:"-"`
+	IsAdmin       bool      `json:"is_admin"`
 }
 
 type Session struct {
