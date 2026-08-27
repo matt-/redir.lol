@@ -245,13 +245,13 @@ async function initApp(me) {
     const [p, c] = await Promise.all([api('/api/presets'), api('/api/info')]);
     presets = p;
     cfg = c;
-    const dl = document.getElementById('presets-list');
-    dl.innerHTML = '';
+    const presetSelect = document.getElementById('rule-target-presets');
+    presetSelect.innerHTML = '<option value="">Common destinations…</option>';
     presets.forEach(ps => {
       const opt = document.createElement('option');
       opt.value = ps.url;
-      opt.label = ps.name;
-      dl.appendChild(opt);
+      opt.textContent = ps.name;
+      presetSelect.appendChild(opt);
     });
     if (cfg.public_ip) {
       document.getElementById('rb-first-ip').value = cfg.public_ip;
@@ -391,6 +391,17 @@ function refreshLabel() {
 
 function refreshRbLabel() {
   document.getElementById('rb-label').value = randomLabel();
+}
+
+// A plain <select> instead of a datalist: browsers filter datalist
+// suggestions to substring-matches of the current input value, so after
+// picking one, reopening only shows that same option. A <select> always
+// lists everything, then resets to the placeholder so it's ready to pick
+// a different preset next time.
+function applyTargetPreset(select) {
+  if (!select.value) return;
+  document.getElementById('rule-target').value = select.value;
+  select.selectedIndex = 0;
 }
 
 async function createRule() {
