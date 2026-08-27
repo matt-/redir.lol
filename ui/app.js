@@ -844,19 +844,15 @@ function renderAdminUsers(users) {
     </tr></thead><tbody>`;
   users.forEach(u => {
     const created = new Date(u.created_at).toLocaleDateString();
-    const isSelf = u.id === currentUserID;
     html += `<tr>
       <td><input type="checkbox" class="admin-usr-cb" value="${escHtml(u.id)}" onchange="adminUsrUpdateDeleteBtn()"></td>
       <td>${escHtml(u.email)}</td>
       <td>${u.email_verified ? '✓' : '—'}</td>
-      <td>
-        <input type="checkbox" ${u.is_admin ? 'checked' : ''} ${isSelf ? 'disabled title="You cannot change your own admin status"' : ''}
-          onchange="adminToggleUserAdmin('${escHtml(u.id)}', this)">
-      </td>
+      <td>${u.is_admin ? '✓' : '—'}</td>
       <td class="mono" style="font-size:11px;color:#64748b">${escHtml(u.id)}</td>
       <td class="timestamp">${created}</td>
       <td style="display:flex;gap:6px">
-        <button class="btn secondary small" onclick="openUserEdit('${escHtml(u.id)}','${escHtml(u.email)}')">Edit</button>
+        <button class="btn secondary small" onclick="openUserEdit('${escHtml(u.id)}','${escHtml(u.email)}',${!!u.is_admin})">Edit</button>
         <button class="btn danger small" onclick="adminDeleteUser('${escHtml(u.id)}')">Delete</button>
       </td>
     </tr>`;
@@ -865,11 +861,16 @@ function renderAdminUsers(users) {
   cont.innerHTML = html;
 }
 
-function openUserEdit(id, email) {
+function openUserEdit(id, email, isAdmin) {
+  const isSelf = id === currentUserID;
   document.getElementById('user-edit-id').value = id;
   document.getElementById('user-edit-email').value = email;
   document.getElementById('user-edit-password').value = '';
   document.getElementById('user-edit-title').textContent = `Edit: ${email}`;
+  const adminCb = document.getElementById('user-edit-admin');
+  adminCb.checked = !!isAdmin;
+  adminCb.disabled = isSelf;
+  document.getElementById('user-edit-admin-hint').style.display = isSelf ? '' : 'none';
   document.getElementById('user-edit-modal').classList.add('modal-open');
 }
 
@@ -881,9 +882,10 @@ async function adminSaveUser() {
   const id       = document.getElementById('user-edit-id').value;
   const email    = document.getElementById('user-edit-email').value.trim();
   const password = document.getElementById('user-edit-password').value;
+  const isAdmin  = document.getElementById('user-edit-admin').checked;
   if (!email) { showAlert('admin-alert', 'Email is required', 'error'); closeUserEdit(); return; }
   try {
-    await api('/api/admin/users/' + id, 'PUT', { email, password: password || undefined });
+    await api('/api/admin/users/' + id, 'PUT', { email, password: password || undefined, is_admin: isAdmin });
     closeUserEdit();
     loadAdminUsers();
   } catch(e) { showAlert('admin-alert', e.message, 'error'); closeUserEdit(); }
@@ -895,17 +897,6 @@ async function adminDeleteUser(id) {
     await api('/api/admin/users/' + id, 'DELETE');
     loadAdminUsers();
   } catch(e) { showAlert('admin-alert', e.message, 'error'); }
-}
-
-async function adminToggleUserAdmin(id, checkbox) {
-  const isAdmin = checkbox.checked;
-  try {
-    await api('/api/admin/users/' + id, 'PUT', { is_admin: isAdmin });
-    showAlert('admin-alert', isAdmin ? 'User promoted to admin' : 'Admin access removed', 'success');
-  } catch(e) {
-    checkbox.checked = !isAdmin;
-    showAlert('admin-alert', e.message, 'error');
-  }
 }
 
 function adminUsrToggleAll(cb) {
