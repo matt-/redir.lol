@@ -333,6 +333,34 @@ function showAlert(containerId, msg, type) {
   showToast(escHtml(msg), type);
 }
 
+// Native validation bubbles can't be restyled to match the app, so suppress
+// them and render our own error text under the field instead. 'invalid'
+// doesn't bubble, hence the capture-phase listener on document.
+document.addEventListener('invalid', (e) => {
+  e.preventDefault();
+  showFieldError(e.target);
+}, true);
+
+document.addEventListener('input', (e) => clearFieldError(e.target), true);
+
+function showFieldError(input) {
+  input.classList.add('field-error');
+  let msg = input.nextElementSibling;
+  if (!msg || !msg.classList.contains('field-error-msg')) {
+    msg = document.createElement('div');
+    msg.className = 'field-error-msg';
+    input.insertAdjacentElement('afterend', msg);
+  }
+  msg.textContent = input.validationMessage;
+  input.focus();
+}
+
+function clearFieldError(input) {
+  input.classList.remove('field-error');
+  const msg = input.nextElementSibling;
+  if (msg && msg.classList.contains('field-error-msg')) msg.remove();
+}
+
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }

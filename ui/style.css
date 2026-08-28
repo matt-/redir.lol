@@ -250,6 +250,11 @@ tr:hover td { background: #1e2130; }
   border-color: #f97316;
 }
 
+/* Custom stand-in for the native validation bubble, which can't be
+   restyled cross-browser. */
+.field-error { border-color: #dc2626 !important; }
+.field-error-msg { color: #fca5a5; font-size: 11px; margin-top: 4px; }
+
 .form-group input::placeholder { color: #475569; }
 
 .form-actions { display: flex; gap: 8px; margin-top: 4px; }
