@@ -142,13 +142,11 @@ function showApp(me) {
 function showLogin() {
   document.getElementById('login-card').style.display = '';
   document.getElementById('register-card').style.display = 'none';
-  document.getElementById('auth-alert').innerHTML = '';
 }
 
 function showRegister() {
   document.getElementById('login-card').style.display = 'none';
   document.getElementById('register-card').style.display = '';
-  document.getElementById('auth-alert').innerHTML = '';
 }
 
 function setBtnLoading(btn, loading, loadingText) {
@@ -175,8 +173,7 @@ async function login(btn) {
     initApp();
   } catch(e) {
     if (e.data && e.data.unverified) {
-      document.getElementById('auth-alert').innerHTML =
-        `<div class="alert error">${escHtml(e.message)} — <a href="#" onclick="resendVerification(event)">resend verification email</a></div>`;
+      showToast(`${escHtml(e.message)} — <a href="#" onclick="resendVerification(event)">resend verification email</a>`, 'error');
     } else {
       showAuthAlert(e.message);
     }
@@ -223,8 +220,7 @@ async function logout() {
 }
 
 function showAuthAlert(msg, type) {
-  document.getElementById('auth-alert').innerHTML =
-    `<div class="alert ${type || 'error'}">${escHtml(msg)}</div>`;
+  showToast(escHtml(msg), type || 'error');
 }
 
 // --- Init ---
@@ -249,12 +245,23 @@ async function init() {
   }
 }
 
+// Floating toasts instead of inline alert boxes — notifications shouldn't
+// push page content around as they come and go. msg may contain trusted
+// HTML (e.g. a link); callers are responsible for escHtml-ing any
+// untrusted parts (typically e.message) before interpolating.
 function showToast(msg, type) {
+  let container = document.getElementById('toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toast-container';
+    container.style.cssText = 'position:fixed;top:16px;right:16px;z-index:1000;display:flex;flex-direction:column;gap:8px;max-width:360px';
+    document.body.appendChild(container);
+  }
   const el = document.createElement('div');
   el.className = `alert ${type || 'success'}`;
-  el.style.cssText = 'position:fixed;top:16px;right:16px;z-index:1000;max-width:360px;box-shadow:0 4px 12px rgba(0,0,0,.15)';
-  el.textContent = msg;
-  document.body.appendChild(el);
+  el.style.boxShadow = '0 4px 12px rgba(0,0,0,.15)';
+  el.innerHTML = msg;
+  container.appendChild(el);
   setTimeout(() => el.remove(), 5000);
 }
 
@@ -320,11 +327,10 @@ async function api(path, method, body) {
   return data;
 }
 
+// containerId is no longer used for placement (all alerts float as toasts
+// now) — kept as a param so existing call sites don't need to change.
 function showAlert(containerId, msg, type) {
-  const el = document.getElementById(containerId);
-  if (!el) return;
-  el.innerHTML = `<div class="alert ${type}">${escHtml(msg)}</div>`;
-  setTimeout(() => { el.innerHTML = ''; }, 4000);
+  showToast(escHtml(msg), type);
 }
 
 function escHtml(s) {
