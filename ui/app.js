@@ -357,7 +357,7 @@ async function loadRules() {
 function renderRules(rules) {
   const cont = document.getElementById('rules-container');
   if (!rules || rules.length === 0) {
-    cont.innerHTML = '<div class="empty-state"><p>No rules yet. Create one above.</p></div>';
+    cont.innerHTML = '';
     return;
   }
   const baseURL = location.origin;
@@ -495,7 +495,7 @@ async function loadRebind() {
 function renderRebind(rules) {
   const cont = document.getElementById('rebind-container');
   if (!rules || rules.length === 0) {
-    cont.innerHTML = '<div class="empty-state"><p>No rebind rules yet. Create one above.</p></div>';
+    cont.innerHTML = '';
     return;
   }
   let html = `<table>
