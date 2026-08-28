@@ -254,7 +254,7 @@ function showToast(msg, type) {
   if (!container) {
     container = document.createElement('div');
     container.id = 'toast-container';
-    container.style.cssText = 'position:fixed;top:16px;right:16px;z-index:1000;display:flex;flex-direction:column;gap:8px;max-width:360px';
+    container.style.cssText = 'position:fixed;bottom:16px;left:16px;z-index:1000;display:flex;flex-direction:column;gap:8px;max-width:360px';
     document.body.appendChild(container);
   }
   const el = document.createElement('div');
