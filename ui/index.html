@@ -103,7 +103,7 @@
         <div class="form-row">
           <div class="form-group" style="grid-column: 1/-1">
             <label>Target URL</label>
-            <input id="rule-target" type="url" placeholder="http://169.254.169.254/latest/meta-data/" list="presets-list" autocomplete="off"
+            <input id="rule-target" type="url" placeholder="http://169.254.169.254/latest/meta-data/" list="presets-list" autocomplete="off" required
               onfocus="datalistShowAll(this)" onblur="datalistRestoreIfEmpty(this)">
             <datalist id="presets-list"></datalist>
           </div>
@@ -135,11 +135,15 @@
           </div>
           <div class="form-group" style="width:150px">
             <label>First IP (attacker)</label>
-            <input id="rb-first-ip" type="text" placeholder="1.2.3.4" autocomplete="off">
+            <input id="rb-first-ip" type="text" placeholder="1.2.3.4" autocomplete="off" required
+              pattern="^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$"
+              title="Enter a valid IPv4 address (e.g. 1.2.3.4)">
           </div>
           <div class="form-group" style="width:170px">
             <label>Second IP (target)</label>
-            <input id="rb-second-ip" type="text" placeholder="169.254.169.254" list="rebind-presets-list" autocomplete="off">
+            <input id="rb-second-ip" type="text" placeholder="169.254.169.254" list="rebind-presets-list" autocomplete="off" required
+              pattern="^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$"
+              title="Enter a valid IPv4 address (e.g. 169.254.169.254)">
             <datalist id="rebind-presets-list">
               <option value="169.254.169.254">AWS/Azure metadata</option>
               <option value="127.0.0.1">localhost</option>

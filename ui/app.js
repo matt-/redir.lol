@@ -438,8 +438,9 @@ async function createRule(btn) {
   const label = document.getElementById('rule-label').value.trim();
   const type  = document.getElementById('rule-type').value;
   const code  = parseInt(document.getElementById('rule-status-code').value, 10);
-  const target = document.getElementById('rule-target').value.trim();
-  if (!target) { showAlert('rule-alert', 'Target URL is required', 'error'); return; }
+  const targetEl = document.getElementById('rule-target');
+  const target = targetEl.value.trim();
+  if (!targetEl.reportValidity()) return;
   setBtnLoading(btn, true, 'Creating…');
   try {
     await api('/api/rules', 'POST', { label, type, status_code: code, target_url: target });
@@ -531,12 +532,15 @@ function renderRebind(rules) {
 }
 
 async function createRebind(btn) {
-  const label     = document.getElementById('rb-label').value.trim();
-  const firstIP   = document.getElementById('rb-first-ip').value.trim();
-  const secondIP  = document.getElementById('rb-second-ip').value.trim();
-  const threshold = parseInt(document.getElementById('rb-threshold').value, 10) || 1;
-  const flipFlop  = document.getElementById('rb-flip-flop').checked;
-  if (!firstIP || !secondIP) { showAlert('rebind-alert', 'Both IPs are required', 'error'); return; }
+  const label       = document.getElementById('rb-label').value.trim();
+  const firstIPEl   = document.getElementById('rb-first-ip');
+  const secondIPEl  = document.getElementById('rb-second-ip');
+  const firstIP     = firstIPEl.value.trim();
+  const secondIP    = secondIPEl.value.trim();
+  const threshold   = parseInt(document.getElementById('rb-threshold').value, 10) || 1;
+  const flipFlop    = document.getElementById('rb-flip-flop').checked;
+  if (!firstIPEl.reportValidity()) return;
+  if (!secondIPEl.reportValidity()) return;
   setBtnLoading(btn, true, 'Creating…');
   try {
     await api('/api/rebind', 'POST', { label, first_ip: firstIP, second_ip: secondIP, threshold, flip_flop: flipFlop });

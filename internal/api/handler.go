@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
 	"strings"
 
@@ -199,6 +200,10 @@ func (h *Handler) rebind(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, "first_ip and second_ip required", 400)
 			return
 		}
+		if !isIPv4(rr.FirstIP) || !isIPv4(rr.SecondIP) {
+			jsonError(w, "first_ip and second_ip must be valid IPv4 addresses", 400)
+			return
+		}
 		rr.UserID = userID
 		if err := h.store.CreateRebindRule(&rr); err != nil {
 			jsonError(w, err.Error(), 500)
@@ -314,4 +319,9 @@ func jsonError(w http.ResponseWriter, msg string, code int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
+func isIPv4(s string) bool {
+	ip := net.ParseIP(s)
+	return ip != nil && ip.To4() != nil
 }
