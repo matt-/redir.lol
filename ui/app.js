@@ -142,11 +142,13 @@ function showApp(me) {
 function showLogin() {
   document.getElementById('login-card').style.display = '';
   document.getElementById('register-card').style.display = 'none';
+  document.getElementById('auth-alert').innerHTML = '';
 }
 
 function showRegister() {
   document.getElementById('login-card').style.display = 'none';
   document.getElementById('register-card').style.display = '';
+  document.getElementById('auth-alert').innerHTML = '';
 }
 
 function setBtnLoading(btn, loading, loadingText) {
@@ -173,7 +175,8 @@ async function login(btn) {
     initApp();
   } catch(e) {
     if (e.data && e.data.unverified) {
-      showToast(`${escHtml(e.message)} — <a href="#" onclick="resendVerification(event)">resend verification email</a>`, 'error');
+      document.getElementById('auth-alert').innerHTML =
+        `<div class="alert error">${escHtml(e.message)} — <a href="#" onclick="resendVerification(event)">resend verification email</a></div>`;
     } else {
       showAuthAlert(e.message);
     }
@@ -219,8 +222,12 @@ async function logout() {
   showLogin();
 }
 
+// Auth errors render inline in the small auth-pane card rather than as a
+// toast — the card is isolated from the rest of the page, so a floating
+// bottom-left notification feels disconnected from it.
 function showAuthAlert(msg, type) {
-  showToast(escHtml(msg), type || 'error');
+  document.getElementById('auth-alert').innerHTML =
+    `<div class="alert ${type || 'error'}">${escHtml(msg)}</div>`;
 }
 
 // --- Init ---
