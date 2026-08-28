@@ -434,19 +434,21 @@ function datalistRestoreIfEmpty(input) {
   delete input.dataset.prevValue;
 }
 
-async function createRule() {
+async function createRule(btn) {
   const label = document.getElementById('rule-label').value.trim();
   const type  = document.getElementById('rule-type').value;
   const code  = parseInt(document.getElementById('rule-status-code').value, 10);
   const target = document.getElementById('rule-target').value.trim();
   if (!target) { showAlert('rule-alert', 'Target URL is required', 'error'); return; }
+  setBtnLoading(btn, true, 'Creating…');
   try {
     await api('/api/rules', 'POST', { label, type, status_code: code, target_url: target });
     refreshLabel();
     document.getElementById('rule-target').value = '';
-    showAlert('rule-alert', 'Rule created', 'success');
     loadRules();
-  } catch(e) { showAlert('rule-alert', e.message, 'error'); }
+  } catch(e) { showAlert('rule-alert', e.message, 'error'); } finally {
+    setBtnLoading(btn, false);
+  }
 }
 
 async function deleteRule(id) {
@@ -528,19 +530,21 @@ function renderRebind(rules) {
   cont.innerHTML = html;
 }
 
-async function createRebind() {
+async function createRebind(btn) {
   const label     = document.getElementById('rb-label').value.trim();
   const firstIP   = document.getElementById('rb-first-ip').value.trim();
   const secondIP  = document.getElementById('rb-second-ip').value.trim();
   const threshold = parseInt(document.getElementById('rb-threshold').value, 10) || 1;
   const flipFlop  = document.getElementById('rb-flip-flop').checked;
   if (!firstIP || !secondIP) { showAlert('rebind-alert', 'Both IPs are required', 'error'); return; }
+  setBtnLoading(btn, true, 'Creating…');
   try {
     await api('/api/rebind', 'POST', { label, first_ip: firstIP, second_ip: secondIP, threshold, flip_flop: flipFlop });
     refreshRbLabel();
-    showAlert('rebind-alert', 'Rebind rule created', 'success');
     loadRebind();
-  } catch(e) { showAlert('rebind-alert', e.message, 'error'); }
+  } catch(e) { showAlert('rebind-alert', e.message, 'error'); } finally {
+    setBtnLoading(btn, false);
+  }
 }
 
 async function resetRebind(id) {
