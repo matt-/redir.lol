@@ -356,6 +356,7 @@ async function loadRules() {
 
 function renderRules(rules) {
   const cont = document.getElementById('rules-container');
+  document.getElementById('rules-header').style.display = (rules && rules.length > 0) ? '' : 'none';
   if (!rules || rules.length === 0) {
     cont.innerHTML = '';
     return;
@@ -494,6 +495,7 @@ async function loadRebind() {
 
 function renderRebind(rules) {
   const cont = document.getElementById('rebind-container');
+  document.getElementById('rebind-header').style.display = (rules && rules.length > 0) ? '' : 'none';
   if (!rules || rules.length === 0) {
     cont.innerHTML = '';
     return;
